@@ -1,0 +1,255 @@
+/* Service & Support Page Responsive Styles */
+
+/* Mobile First Approach */
+@media (max-width: 768px) {
+  .service-support-hero {
+    padding: 60px 0 !important;
+  }
+  
+  .service-support-hero h1 {
+    font-size: 2rem !important;
+    margin-bottom: 16px !important;
+  }
+  
+  .service-support-hero p {
+    font-size: 16px !important;
+    margin-bottom: 24px !important;
+  }
+  
+  .service-support-stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+    margin-top: 32px !important;
+  }
+  
+  .service-support-stats .stat-number {
+    font-size: 2rem !important;
+  }
+  
+  .service-support-stats .stat-label {
+    font-size: 14px !important;
+  }
+  
+  .service-support-tabs {
+    padding: 40px 0 !important;
+  }
+  
+  .service-support-tab-header {
+    flex-direction: column !important;
+    gap: 8px !important;
+    margin-bottom: 32px !important;
+  }
+  
+  .service-support-tab-button {
+    width: 100% !important;
+    padding: 12px 16px !important;
+    font-size: 14px !important;
+  }
+  
+  .service-support-services-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+  
+  .service-support-service-card {
+    padding: 24px !important;
+  }
+  
+  .service-support-service-icon {
+    width: 48px !important;
+    height: 48px !important;
+    margin-bottom: 16px !important;
+  }
+  
+  .service-support-service-title {
+    font-size: 20px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .service-support-service-description {
+    font-size: 14px !important;
+    margin-bottom: 16px !important;
+  }
+  
+  .service-support-channels-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    margin-top: 32px !important;
+  }
+  
+  .service-support-channel-card {
+    padding: 20px !important;
+  }
+  
+  .service-support-channel-icon {
+    width: 40px !important;
+    height: 40px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .service-support-faq-item {
+    margin-bottom: 12px !important;
+  }
+  
+  .service-support-faq-question {
+    padding: 16px !important;
+    font-size: 16px !important;
+  }
+  
+  .service-support-faq-answer {
+    padding: 0 16px 16px !important;
+    font-size: 14px !important;
+  }
+  
+  .service-support-cta {
+    padding: 60px 0 !important;
+  }
+  
+  .service-support-cta h2 {
+    font-size: 1.75rem !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .service-support-cta p {
+    font-size: 16px !important;
+    margin-bottom: 24px !important;
+  }
+  
+  .service-support-cta-buttons {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  
+  .service-support-cta-button {
+    width: 100% !important;
+    padding: 14px 24px !important;
+    font-size: 14px !important;
+  }
+}
+
+/* Tablet Styles */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .service-support-services-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .service-support-channels-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .service-support-stats {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+/* Small Mobile Styles */
+@media (max-width: 480px) {
+  .service-support-hero {
+    padding: 40px 0 !important;
+  }
+  
+  .service-support-hero h1 {
+    font-size: 1.75rem !important;
+  }
+  
+  .service-support-hero p {
+    font-size: 14px !important;
+  }
+  
+  .service-support-stats {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  .service-support-stats .stat-number {
+    font-size: 1.75rem !important;
+  }
+  
+  .service-support-stats .stat-label {
+    font-size: 12px !important;
+  }
+  
+  .service-support-service-card {
+    padding: 20px !important;
+  }
+  
+  .service-support-service-icon {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  .service-support-service-title {
+    font-size: 18px !important;
+  }
+  
+  .service-support-channel-card {
+    padding: 16px !important;
+  }
+  
+  .service-support-channel-icon {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  
+  .service-support-cta h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  .service-support-cta p {
+    font-size: 14px !important;
+  }
+}
+
+/* Hover Effects for Touch Devices */
+@media (hover: none) {
+  .service-support-service-card:hover,
+  .service-support-channel-card:hover {
+    transform: none !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  }
+}
+
+/* Focus States for Accessibility */
+.service-support-tab-button:focus,
+.service-support-cta-button:focus,
+.service-support-faq-question:focus {
+  outline: 2px solid #667eea !important;
+  outline-offset: 2px !important;
+}
+
+/* Animation Performance */
+.service-support-service-card,
+.service-support-channel-card,
+.service-support-faq-item {
+  will-change: transform, box-shadow;
+}
+
+/* Smooth Transitions */
+.service-support-service-card,
+.service-support-channel-card,
+.service-support-tab-button,
+.service-support-cta-button {
+  transition: all 0.3s ease !important;
+}
+
+/* Loading States */
+.service-support-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Print Styles */
+@media print {
+  .service-support-hero,
+  .service-support-cta {
+    background: #f8f9fa !important;
+    color: #000 !important;
+  }
+  
+  .service-support-service-card,
+  .service-support-channel-card,
+  .service-support-faq-item {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+}
