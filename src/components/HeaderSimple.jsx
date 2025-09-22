@@ -71,6 +71,10 @@ const HeaderSimple = () => {
       ]
     },
     { 
+      nameKey: 'nav.jobs', 
+      path: '/jobs' 
+    },
+    { 
       nameKey: 'nav.about', 
       path: '/about' 
     },

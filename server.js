@@ -1780,6 +1780,10 @@ app.get('/drivers', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
+app.get('/jobs', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 app.get('/service-support', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
