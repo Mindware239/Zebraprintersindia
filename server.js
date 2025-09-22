@@ -264,6 +264,21 @@ app.get('/api/products/:id', (req, res) => {
   });
 });
 
+// Get product by slug
+app.get('/api/products/slug/:slug', (req, res) => {
+  const { slug } = req.params;
+  const query = 'SELECT * FROM products WHERE slug = ?';
+  db.query(query, [slug], (err, results) => {
+    if (err) {
+      res.status(500).json({ error: 'Database query failed' });
+    } else if (results.length === 0) {
+      res.status(404).json({ error: 'Product not found' });
+    } else {
+      res.json(results[0]);
+    }
+  });
+});
+
 // Get products by category
 app.get('/api/products/category/:category', (req, res) => {
   const { category } = req.params;

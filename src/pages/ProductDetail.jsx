@@ -6,7 +6,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import apiService from '../services/api';
 
 const ProductDetail = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const { isEnglish } = useLanguage();
   const [product, setProduct] = useState(null);
@@ -20,7 +20,7 @@ const ProductDetail = () => {
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        const data = await apiService.getProductById(id);
+        const data = await apiService.getProductBySlug(slug);
         setProduct(data);
         setError(null);
       } catch (err) {
@@ -31,14 +31,14 @@ const ProductDetail = () => {
       }
     };
 
-    if (id) {
+    if (slug) {
       fetchProduct();
     }
-  }, [id]);
+  }, [slug]);
 
   const handleAddToCart = () => {
     // TODO: Implement add to cart functionality
-    console.log('Adding to cart:', { productId: id, quantity });
+    console.log('Adding to cart:', { productSlug: slug, quantity });
   };
 
   const handleDownloadDatasheet = () => {

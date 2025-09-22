@@ -33,6 +33,10 @@ class ApiService {
     return this.fetchData(`/products/${id}`);
   }
 
+  async getProductBySlug(slug) {
+    return this.fetchData(`/products/slug/${slug}`);
+  }
+
   async getProductsByCategory(category) {
     return this.fetchData(`/products/category/${category}`);
   }

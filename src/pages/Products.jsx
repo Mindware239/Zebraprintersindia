@@ -579,7 +579,7 @@ const Products = () => {
                   <div style={productActionsStyles}>
                     <button 
                       style={primaryButtonStyles}
-                      onClick={() => navigate(`/product/${product.id}`)}
+                      onClick={() => navigate(`/product/${product.slug}`)}
                     >
                       <Eye style={{ width: '16px', height: '16px' }} />
                       {isEnglish ? 'View' : 'देखें'}
