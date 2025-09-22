@@ -24,60 +24,20 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
     'service': Headphones
   };
 
-  // Static fallback data
-  const staticDropdownData = {
-    'printers': {
-      id: 1,
-      display_name: 'Printers',
-      description: 'Barcode and label printers for all business needs',
-      subcategories: [
-        { id: 1, name: 'desktop-printers', display_name: 'Desktop Printers', description: 'Compact desktop printing solutions' },
-        { id: 2, name: 'industrial-printers', display_name: 'Industrial Printers', description: 'Heavy-duty industrial printing' },
-        { id: 3, name: 'mobile-printers', display_name: 'Mobile Printers', description: 'Portable printing solutions' }
-      ]
-    },
-    'scanners': {
-      id: 2,
-      display_name: 'Barcode Scanners',
-      description: 'Advanced scanning solutions for every industry',
-      subcategories: [
-        { id: 4, name: 'handheld-scanners', display_name: 'Handheld Scanners', description: 'Portable scanning devices' },
-        { id: 5, name: 'fixed-mount-scanners', display_name: 'Fixed Mount Scanners', description: 'Stationary scanning solutions' },
-        { id: 6, name: 'mobile-computers', display_name: 'Mobile Computers', description: 'All-in-one mobile computing' }
-      ]
-    },
-    'accessories': {
-      id: 3,
-      display_name: 'Accessories',
-      description: 'Accessories for printers and scanners',
-      subcategories: [
-        { id: 7, name: 'labels', display_name: 'Labels & Supplies', description: 'Labels, ribbons, and consumables' },
-        { id: 8, name: 'cables', display_name: 'Cables & Connectors', description: 'Connectivity solutions' },
-        { id: 9, name: 'mounts', display_name: 'Mounts & Stands', description: 'Installation accessories' }
-      ]
-    },
-    'software': {
-      id: 4,
-      display_name: 'Software',
-      description: 'Professional software solutions',
-      subcategories: [
-        { id: 10, name: 'design-software', display_name: 'Design Software', description: 'Label and barcode design tools' },
-        { id: 11, name: 'management-software', display_name: 'Management Software', description: 'Device and inventory management' }
-      ]
-    }
-  };
 
   // Fetch dropdown data from API
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
+        console.log('Fetching dropdown data from API...');
         const data = await apiService.getDropdownData();
+        console.log('Dropdown data received:', data);
         setDropdownData(data);
         setIsLoading(false);
       } catch (error) {
         console.error('Error fetching dropdown data:', error);
-        // Use static data as fallback
-        setDropdownData(staticDropdownData);
+        // Show error state instead of static data
+        setDropdownData({});
         setIsLoading(false);
       }
     };
@@ -110,6 +70,8 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
   }
 
   console.log('ProductDropdown is open, rendering dropdown');
+  console.log('Dropdown data:', dropdownData);
+  console.log('Is loading:', isLoading);
 
   return (
     <div 
@@ -137,6 +99,10 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
                 <div className="loading-state">
                   <div className="loading-spinner"></div>
                   <p>Loading categories...</p>
+                </div>
+              ) : Object.keys(dropdownData).length === 0 ? (
+                <div className="error-state">
+                  <p>No categories available. Please check your database connection.</p>
                 </div>
               ) : (
                 Object.entries(dropdownData).map(([categoryKey, category]) => {
@@ -172,7 +138,8 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
                 </div>
                 
                 <div className="subcategories-grid">
-                  {dropdownData[hoveredCategory].subcategories.map((subcategory) => (
+                  {dropdownData[hoveredCategory].subcategories && dropdownData[hoveredCategory].subcategories.length > 0 ? (
+                    dropdownData[hoveredCategory].subcategories.map((subcategory) => (
                     <Link
                       key={subcategory.id}
                       to={`/products/${subcategory.name}`}
@@ -185,7 +152,12 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
                       </div>
                       <ChevronRight size={14} className="subcategory-arrow" />
                     </Link>
-                  ))}
+                    ))
+                  ) : (
+                    <div className="no-subcategories">
+                      <p>No subcategories available for this category.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
