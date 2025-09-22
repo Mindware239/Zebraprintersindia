@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import XLSX from 'xlsx';
 import csv from 'csv-parser';
 import fs from 'fs';
+import process from 'process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -123,10 +124,11 @@ app.use('/downloads', express.static('uploads/drivers'));
 
 // Database connection with better error handling
 const db = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '', // XAMPP default password is empty
-  database: 'zebra_db',
+  // Use environment variables from CapRover
+  host: process.env.MYSQL_HOST,
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD,
+  database: process.env.MYSQL_DATABASE,
   multipleStatements: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -163,7 +165,7 @@ db.on('error', (err) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  db.query('SELECT 1 as test', (err, results) => {
+  db.query('SELECT 1 as test', (err) => {
     if (err) {
       res.status(500).json({ 
         status: 'error', 
@@ -274,7 +276,7 @@ app.post('/api/products', upload.any(), (req, res) => {
     if (specifications) {
       try {
         features = JSON.parse(specifications);
-      } catch (e) {
+      } catch {
         // If not JSON, split by newlines
         features = specifications.split('\n').filter(f => f.trim());
       }
@@ -349,7 +351,7 @@ app.put('/api/products/:id', upload.fields([{ name: 'image', maxCount: 1 }, { na
     if (specifications) {
       try {
         features = JSON.parse(specifications);
-      } catch (e) {
+      } catch {
         // If not JSON, split by newlines
         features = specifications.split('\n').filter(f => f.trim());
       }
@@ -385,7 +387,7 @@ app.put('/api/products/:id', upload.fields([{ name: 'image', maxCount: 1 }, { na
     console.log('Update query:', query);
     console.log('Update values:', values);
     
-    db.query(query, values, (err, results) => {
+    db.query(query, values, (err) => {
       if (err) {
         console.error('Error updating product:', err);
         res.status(500).json({ error: 'Failed to update product' });
@@ -411,7 +413,7 @@ app.delete('/api/products/:id', (req, res) => {
   const { id } = req.params;
   const query = 'DELETE FROM products WHERE id = ?';
   
-  db.query(query, [id], (err, results) => {
+  db.query(query, [id], (err) => {
     if (err) {
       res.status(500).json({ error: 'Failed to delete product' });
     } else {
@@ -588,7 +590,7 @@ async function processCSVFile(filePath) {
     const products = [];
     console.log(`Reading CSV file: ${filePath}`);
     
-    const stream = fs.createReadStream(filePath)
+    fs.createReadStream(filePath)
       .pipe(csv())
       .on('data', (row) => {
         // Only log first few rows to avoid spam
@@ -621,11 +623,11 @@ async function processExcelFile(filePath) {
 function validateProductsEnhanced(products) {
   const errors = [];
   const requiredFields = ['name', 'category'];
-  const expectedSchema = [
-    'name', 'slug', 'category', 'subcategory', 'shortDescription', 'description', 
-    'specifications', 'sku', 'metaKeywords', 'metaTitle', 'metaDescription', 
-    'status', 'featured', 'image', 'pdf'
-  ];
+  // const expectedSchema = [
+  //   'name', 'slug', 'category', 'subcategory', 'shortDescription', 'description', 
+  //   'specifications', 'sku', 'metaKeywords', 'metaTitle', 'metaDescription', 
+  //   'status', 'featured', 'image', 'pdf'
+  // ];
   
   products.forEach((product, index) => {
     const rowNumber = index + 2; // +2 because CSV starts from row 2 (after header)
@@ -1002,7 +1004,7 @@ async function insertProducts(products) {
           0  // reviews
         ];
 
-        const result = await new Promise((resolve, reject) => {
+        await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {
             reject(new Error('Database query timeout'));
           }, 10000); // 10 second timeout per product for reliable processing
@@ -1121,7 +1123,7 @@ app.put('/api/categories/:id', upload.single('image'), (req, res) => {
     query += ' WHERE id = ?';
     values.push(id);
 
-    db.query(query, values, (err, results) => {
+    db.query(query, values, (err) => {
       if (err) {
         console.error('Error updating category:', err);
         res.status(500).json({ error: 'Failed to update category' });
@@ -1140,7 +1142,7 @@ app.delete('/api/categories/:id', (req, res) => {
   const { id } = req.params;
   const query = 'DELETE FROM categories WHERE id = ?';
   
-  db.query(query, [id], (err, results) => {
+  db.query(query, [id], (err) => {
     if (err) {
       res.status(500).json({ error: 'Failed to delete category' });
     } else {
@@ -1276,7 +1278,7 @@ app.put('/api/subcategories/:id', upload.single('image'), (req, res) => {
     query += ' WHERE id = ?';
     values.push(id);
 
-    db.query(query, values, (err, results) => {
+    db.query(query, values, (err) => {
       if (err) {
         console.error('Error updating subcategory:', err);
         res.status(500).json({ error: 'Failed to update subcategory' });
@@ -1295,7 +1297,7 @@ app.delete('/api/subcategories/:id', (req, res) => {
   const { id } = req.params;
   const query = 'DELETE FROM subcategories WHERE id = ?';
   
-  db.query(query, [id], (err, results) => {
+  db.query(query, [id], (err) => {
     if (err) {
       res.status(500).json({ error: 'Failed to delete subcategory' });
     } else {
@@ -1374,7 +1376,7 @@ app.put('/api/brands/:id', upload.single('logo'), (req, res) => {
     query += ' WHERE id = ?';
     values.push(id);
 
-    db.query(query, values, (err, results) => {
+    db.query(query, values, (err) => {
       if (err) {
         console.error('Error updating brand:', err);
         res.status(500).json({ error: 'Failed to update brand' });
@@ -1393,7 +1395,7 @@ app.delete('/api/brands/:id', (req, res) => {
   const { id } = req.params;
   const query = 'DELETE FROM brands WHERE id = ?';
   
-  db.query(query, [id], (err, results) => {
+  db.query(query, [id], (err) => {
     if (err) {
       res.status(500).json({ error: 'Failed to delete brand' });
     } else {
