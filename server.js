@@ -1784,6 +1784,6 @@ app.use((error, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-  console.log(`✅ Connected to MySQL database: ${process.env.DB_NAME || 'zebra_db'}`);
+  console.log(`✅ Connected to MySQL database: ${process.env.MYSQL_DATABASE || 'zebra_db'}`);
   console.log(`📊 Database connection established successfully`);
 });
