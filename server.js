@@ -122,7 +122,7 @@ app.use((req, res, next) => {
 // Database connection pool with better error handling
 const db = mysql.createPool({
   // Use environment variables from CapRover
-  host: process.env.MYSQL_HOST || 'srv-captain--mysql-db',
+  host: process.env.MYSQL_HOST || 'srv-captain--zebraprintersindia-db',
   user: process.env.MYSQL_USER || 'root',
   password: process.env.MYSQL_PASSWORD || 'your_mysql_password_here',
   database: process.env.MYSQL_DATABASE || 'zebra_db',
