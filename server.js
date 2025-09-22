@@ -9,6 +9,7 @@ import XLSX from 'xlsx';
 import csv from 'csv-parser';
 import fs from 'fs';
 import process from 'process';
+import { setupDatabase, checkDatabaseConnection } from './setup_database_caprover.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -118,46 +119,72 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   next();
 });
+// Database connection pool with better error handling
+const db = mysql.createPool({
+  // Use environment variables from CapRover
+  host: process.env.MYSQL_HOST || 'srv-captain--mysql-db',
+  user: process.env.MYSQL_USER || 'root',
+  password: process.env.MYSQL_PASSWORD || 'your_mysql_password_here',
+  database: process.env.MYSQL_DATABASE || 'zebra_db',
+  multipleStatements: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  acquireTimeout: 60000,
+  timeout: 60000,
+  reconnect: true
+});
+
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 app.use('/downloads', express.static('uploads/drivers'));
 
-// Database connection with better error handling
-const db = mysql.createConnection({
-  // Use environment variables from CapRover
-  host: process.env.MYSQL_HOST,
-  user: process.env.MYSQL_USER,
-  password: process.env.MYSQL_PASSWORD,
-  database: process.env.MYSQL_DATABASE,
-  multipleStatements: true,
-  connectionLimit: 10,
-  queueLimit: 0
+// Database connection middleware
+app.use((req, res, next) => {
+  // Add database connection to request object
+  req.db = db;
+  next();
 });
 
-// Connect to database
-db.connect((err) => {
+// Test database connection and setup
+db.getConnection(async (err, connection) => {
   if (err) {
     console.error('❌ Database connection failed:', err.message);
     console.error('Please make sure:');
-    console.error('1. XAMPP is running');
-    console.error('2. MySQL service is started');
+    console.error('1. MySQL service is running in CapRover');
+    console.error('2. Database credentials are correct');
     console.error('3. Database "zebra_db" exists');
     console.error('4. Database has been imported with the correct tables');
-    process.exit(1);
+    console.error('Environment variables:', {
+      host: process.env.MYSQL_HOST,
+      user: process.env.MYSQL_USER,
+      database: process.env.MYSQL_DATABASE
+    });
+    // Don't exit, let the app continue and retry
   } else {
-    console.log('✅ Connected to MySQL database: zebra_db');
+    console.log('✅ Connected to MySQL database:', process.env.MYSQL_DATABASE || 'zebra_db');
     console.log('📊 Database connection established successfully');
+    connection.release();
+    
+    // Setup database tables if needed
+    try {
+      await setupDatabase();
+      const isReady = await checkDatabaseConnection();
+      if (isReady) {
+        console.log('🚀 Database is ready for use');
+      }
+    } catch (setupError) {
+      console.error('⚠️  Database setup warning:', setupError.message);
+    }
   }
 });
 
-// Handle database disconnection
+// Handle database pool errors
 db.on('error', (err) => {
-  console.error('❌ Database error:', err);
+  console.error('❌ Database pool error:', err);
   if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-    console.log('🔄 Attempting to reconnect to database...');
-    db.connect();
+    console.log('🔄 Connection lost, pool will handle reconnection...');
   } else {
-    throw err;
+    console.error('❌ Fatal database error:', err);
   }
 });
 
@@ -165,19 +192,33 @@ db.on('error', (err) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  db.query('SELECT 1 as test', (err) => {
+  db.getConnection((err, connection) => {
     if (err) {
       res.status(500).json({ 
         status: 'error', 
         message: 'Database connection failed',
-        error: err.message 
+        error: err.message,
+        timestamp: new Date().toISOString()
       });
     } else {
-      res.json({ 
-        status: 'success', 
-        message: 'Database connected successfully',
-        database: 'zebra_db',
-        timestamp: new Date().toISOString()
+      connection.query('SELECT 1 as test', (queryErr) => {
+        connection.release(); // Always release the connection back to the pool
+        
+        if (queryErr) {
+          res.status(500).json({ 
+            status: 'error', 
+            message: 'Database query failed',
+            error: queryErr.message,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          res.json({ 
+            status: 'success', 
+            message: 'Database connected successfully',
+            database: process.env.MYSQL_DATABASE || 'zebra_db',
+            timestamp: new Date().toISOString()
+          });
+        }
       });
     }
   });
