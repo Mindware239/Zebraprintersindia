@@ -87,6 +87,23 @@ export const translations = {
       ne: 'कामहरू',
       sa: 'कार्याणि'
     },
+    blogs: {
+      en: 'Blogs',
+      hi: 'ब्लॉग',
+      bn: 'ব্লগ',
+      te: 'బ్లాగులు',
+      mr: 'ब्लॉग',
+      ta: 'வலைப்பதிவுகள்',
+      gu: 'બ્લોગ',
+      kn: 'ಬ್ಲಾಗ್',
+      ml: 'ബ്ലോഗ്',
+      pa: 'ਬਲੌਗ',
+      or: 'ବ୍ଲଗ୍',
+      as: 'ব্লগ',
+      ur: 'بلاگ',
+      ne: 'ब्लग',
+      sa: 'लेखाः'
+    },
     serviceSupport: {
       en: 'Service & Support',
       hi: 'सेवा और सहायता',

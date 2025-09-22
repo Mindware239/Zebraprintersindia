@@ -1784,6 +1784,10 @@ app.get('/jobs', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
+app.get('/blogs', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 app.get('/service-support', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });

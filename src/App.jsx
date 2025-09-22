@@ -11,6 +11,7 @@ import ProductDetail from './pages/ProductDetail';
 import ServiceSupport from './pages/ServiceSupport';
 import Drivers from './pages/Drivers';
 import Jobs from './pages/Jobs';
+import Blogs from './pages/Blogs';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Test from './pages/Test';
@@ -34,6 +35,7 @@ function AppContent() {
           <Route path="/service-support" element={<ServiceSupport />} />
           <Route path="/drivers" element={<Drivers />} />
           <Route path="/jobs" element={<Jobs />} />
+          <Route path="/blogs" element={<Blogs />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/test" element={<Test />} />
