@@ -261,7 +261,12 @@ const Header = () => {
               >
                 <Link
                   to={item.path}
-                  style={navLinkStyles(location.pathname === item.path)}
+                  style={{
+                    ...navLinkStyles(location.pathname === item.path),
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
                   onMouseEnter={(e) => {
                     e.target.style.color = '#2563eb';
                     e.target.style.backgroundColor = '#f3f4f6';
@@ -271,8 +276,8 @@ const Header = () => {
                     e.target.style.backgroundColor = 'transparent';
                   }}
                 >
-                  {item.name}
-                  {item.hasDropdown && <ChevronDown size={16} style={{ marginLeft: '4px' }} />}
+                  <span>{item.name}</span>
+                  {item.hasDropdown && <ChevronDown size={14} />}
                   {location.pathname === item.path && (
                     <motion.div
                       layoutId="activeTab"
