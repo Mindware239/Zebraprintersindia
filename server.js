@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 80;
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -100,20 +100,14 @@ const upload = multer({
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'],
+  origin: true, // Allow all origins for CapRover
   credentials: true,
   optionsSuccessStatus: 200
 }));
 
 // Additional CORS headers to ensure credentials are properly set
 app.use((req, res, next) => {
-  const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'];
-  const origin = req.headers.origin;
-  
-  if (allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-  
+  res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
@@ -189,6 +183,16 @@ db.on('error', (err) => {
 });
 
 // Routes
+
+// Simple health check for CapRover
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Root endpoint for CapRover health check - immediate response
+app.get('/', (req, res) => {
+  res.status(200).send('OK');
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -1749,8 +1753,8 @@ app.put('/api/auth/profile', (req, res) => {
   });
 });
 
-// Serve React app for root route
-app.get('/', (req, res) => {
+// Serve React app for all other routes (catch-all)
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'), (err) => {
     if (err) {
       console.error('Error serving React app:', err);
@@ -1759,30 +1763,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Serve React app for other non-API routes
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
-app.get('/products', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
-app.get('/about', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
-app.get('/contact', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
-app.get('/drivers', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
-app.get('/service-support', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
+// All React routes are handled by the catch-all route above
 
 // Global error handler to ensure JSON responses
 app.use((error, req, res, next) => {

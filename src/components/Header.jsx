@@ -41,7 +41,9 @@ const Header = () => {
     { name: 'Products', path: '/products' },
     { name: 'Service & Support', path: '/service-support' },
     { name: 'About', path: '/about' },
-    { name: 'Contact', path: '/contact' }
+    { name: 'Contact', path: '/contact' },
+    { name: 'Jobs', path: '/jobs' },
+    { name: 'Blogs', path: '/blogs' }
   ];
 
   const headerStyles = {

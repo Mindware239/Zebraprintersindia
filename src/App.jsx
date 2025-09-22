@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ModalProvider } from './components/modals/modal-context';
-import Header from './components/HeaderSimple';
+import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Products from './pages/Products';
@@ -12,6 +12,10 @@ import ServiceSupport from './pages/ServiceSupport';
 import Drivers from './pages/Drivers';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import Jobs from './pages/Jobs';
+import Blogs from './pages/Blogs';
+
+
 import Test from './pages/Test';
 import Admin from './pages/Admin';
 import './App.css';
@@ -34,6 +38,8 @@ function AppContent() {
           <Route path="/drivers" element={<Drivers />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/jobs" element={<Jobs />} />
+          <Route path="/blogs" element={<Blogs />} />
           <Route path="/test" element={<Test />} />
           <Route path="/admin/*" element={<Admin />} />
         </Routes>
