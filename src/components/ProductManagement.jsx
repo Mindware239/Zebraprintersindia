@@ -41,7 +41,7 @@ const ProductManagement = () => {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/products');
+      const response = await fetch('http://localhost:3000/api/products');
       const data = await response.json();
       setProducts(data);
     } catch (error) {
@@ -53,7 +53,7 @@ const ProductManagement = () => {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/categories');
+      const response = await fetch('http://localhost:3000/api/categories');
       const data = await response.json();
       setCategories(data);
     } catch (error) {
@@ -63,7 +63,7 @@ const ProductManagement = () => {
 
   const loadSubcategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/subcategories');
+      const response = await fetch('http://localhost:3000/api/subcategories');
       const data = await response.json();
       setSubcategories(data);
     } catch (error) {
@@ -123,8 +123,8 @@ const ProductManagement = () => {
       }
 
       const url = isEditing 
-        ? `http://localhost:5000/api/products/${editingProductId}`
-        : 'http://localhost:5000/api/products';
+        ? `http://localhost:3000/api/products/${editingProductId}`
+        : 'http://localhost:3000/api/products';
       
       const method = isEditing ? 'PUT' : 'POST';
 
@@ -176,7 +176,7 @@ const ProductManagement = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        const response = await fetch(`http://localhost:5000/api/products/${id}`, {
+        const response = await fetch(`http://localhost:3000/api/products/${id}`, {
           method: 'DELETE'
         });
         if (response.ok) {
@@ -200,7 +200,7 @@ const ProductManagement = () => {
       try {
         setLoading(true);
         for (const id of selectedProducts) {
-          await fetch(`http://localhost:5000/api/products/${id}`, {
+          await fetch(`http://localhost:3000/api/products/${id}`, {
             method: 'DELETE'
           });
         }
@@ -378,8 +378,9 @@ const ProductManagement = () => {
                           setEditingProductId(product.id);
                           setFormData({
                             ...product,
-                            image: null,
-                            pdf: null,
+                            // Keep existing image and PDF URLs, don't reset to null
+                            image: product.image || null,
+                            pdf: product.pdf || null,
                             // Ensure we have the right category name for filtering
                             category: product.category || product.category_name
                           });
@@ -626,12 +627,23 @@ const ProductManagement = () => {
             
             <div className="form-group">
               <label>Product Image *</label>
+              {isEditing && formData.image && (
+                <div className="current-image">
+                  <p>Current image:</p>
+                  <img 
+                    src={formData.image} 
+                    alt="Current product image" 
+                    style={{maxWidth: '200px', maxHeight: '150px', marginBottom: '10px'}}
+                  />
+                  <p><small>Upload a new image to replace the current one</small></p>
+                </div>
+              )}
               <input
                 type="file"
                 name="image"
                 onChange={handleInputChange}
                 accept="image/*"
-                required
+                required={!isEditing}
                 className="form-file"
               />
               <small>Upload main product image (JPG, PNG, GIF)</small>
@@ -639,6 +651,20 @@ const ProductManagement = () => {
 
             <div className="form-group">
               <label>PDF Datasheet / Brochure</label>
+              {isEditing && formData.pdf && (
+                <div className="current-pdf">
+                  <p>Current PDF:</p>
+                  <a 
+                    href={formData.pdf} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{color: '#007bff', textDecoration: 'underline'}}
+                  >
+                    View current PDF
+                  </a>
+                  <p><small>Upload a new PDF to replace the current one</small></p>
+                </div>
+              )}
               <input
                 type="file"
                 name="pdf"

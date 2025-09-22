@@ -4,12 +4,29 @@ import ProductManagement from './ProductManagement';
 import CategoryManagement from './CategoryManagement';
 import SubcategoryManagement from './SubcategoryManagement';
 import BrandManagement from './BrandManagement';
+import DriverManagement from './DriverManagement';
 import Import from '../pages/Import';
+import apiService from '../services/api';
 
 const AdminDashboard = ({ activeTab: propActiveTab = 'dashboard' }) => {
   const [activeTab, setActiveTab] = useState(propActiveTab);
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Dynamic data states
+  const [dashboardData, setDashboardData] = useState({
+    products: [],
+    categories: [],
+    subcategories: [],
+    brands: [],
+    stats: {
+      totalProducts: 0,
+      totalCategories: 0,
+      totalSubcategories: 0,
+      totalBrands: 0
+    }
+  });
+  const [loading, setLoading] = useState(true);
 
   // Update activeTab when prop changes
   useEffect(() => {
@@ -24,6 +41,49 @@ const AdminDashboard = ({ activeTab: propActiveTab = 'dashboard' }) => {
     }
   }, [location]);
 
+  // Load dashboard data
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [products, categories, subcategories, brands] = await Promise.all([
+        apiService.getAllProducts(),
+        apiService.getCategories(),
+        apiService.getSubcategories(),
+        apiService.getBrands()
+      ]);
+
+      // Group products by category for statistics
+      const productStats = {
+        zebraPrinters: products.filter(p => p.category?.toLowerCase().includes('printer') || p.name?.toLowerCase().includes('printer')).length,
+        barcodeScanners: products.filter(p => p.category?.toLowerCase().includes('scanner') || p.name?.toLowerCase().includes('scanner')).length,
+        mobileComputers: products.filter(p => p.category?.toLowerCase().includes('mobile') || p.category?.toLowerCase().includes('computer') || p.name?.toLowerCase().includes('mobile')).length,
+        labelsRibbons: products.filter(p => p.category?.toLowerCase().includes('label') || p.category?.toLowerCase().includes('ribbon') || p.name?.toLowerCase().includes('label')).length
+      };
+
+      setDashboardData({
+        products: products.slice(0, 5), // Show only recent 5 products
+        categories: categories.slice(0, 5), // Show only recent 5 categories
+        subcategories,
+        brands,
+        stats: {
+          totalProducts: products.length,
+          totalCategories: categories.length,
+          totalSubcategories: subcategories.length,
+          totalBrands: brands.length,
+          ...productStats
+        }
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'analytics', label: 'Analytics', icon: '📈' },
@@ -32,6 +92,7 @@ const AdminDashboard = ({ activeTab: propActiveTab = 'dashboard' }) => {
     { id: 'categories', label: 'Categories', icon: '🏷️' },
     { id: 'subcategories', label: 'Subcategories', icon: '📂' },
     { id: 'brands', label: 'Brands', icon: '🏢' },
+    { id: 'drivers', label: 'Drivers', icon: '💾' },
     { id: 'webpages', label: 'WebPages', icon: '🌐' },
     { id: 'hero-settings', label: 'Hero Settings', icon: '⚙️' },
     { id: 'color-themes', label: 'Color Themes', icon: '🎨' },
@@ -40,21 +101,6 @@ const AdminDashboard = ({ activeTab: propActiveTab = 'dashboard' }) => {
     { id: 'settings', label: 'Settings', icon: '⚙️' }
   ];
 
-  const recentProducts = [
-    { name: 'Zebra ZD421 Desktop Printer', status: 'Active', sku: 'ZEB-ZD421' },
-    { name: 'Zebra ZT411 Industrial Printer', status: 'Active', sku: 'ZEB-ZT411' },
-    { name: 'Zebra DS2208 Barcode Scanner', status: 'Active', sku: 'ZEB-DS2208' },
-    { name: 'Zebra TC21 Mobile Computer', status: 'Active', sku: 'ZEB-TC21' },
-    { name: 'Zebra ZD620 Industrial Printer', status: 'Active', sku: 'ZEB-ZD620' }
-  ];
-
-  const recentCategories = [
-    { name: 'Desktop Printers', description: 'High-performance desktop thermal printers for small to medium businesses', status: 'Active' },
-    { name: 'Industrial Printers', description: 'Heavy-duty industrial printers for high-volume manufacturing environments', status: 'Active' },
-    { name: 'Barcode Scanners', description: 'Handheld and fixed-mount barcode scanners for various applications', status: 'Active' },
-    { name: 'Mobile Computers', description: 'Rugged mobile computing devices for field operations and data collection', status: 'Active' },
-    { name: 'Labels & Ribbons', description: 'Thermal labels and printing ribbons for barcode printing applications', status: 'Active' }
-  ];
 
   const renderContent = () => {
     switch(activeTab) {
@@ -127,7 +173,7 @@ const AdminDashboard = ({ activeTab: propActiveTab = 'dashboard' }) => {
                   </div>
                 </div>
                 <div className="section-content">
-                  {recentProducts.map((product, index) => (
+                  {dashboardData.products.map((product, index) => (
                     <div key={index} className="product-item">
                       <div className="item-icon">🖨️</div>
                       <div className="item-content">
@@ -155,7 +201,7 @@ const AdminDashboard = ({ activeTab: propActiveTab = 'dashboard' }) => {
                   </div>
                 </div>
                 <div className="section-content">
-                  {recentCategories.map((category, index) => (
+                  {dashboardData.categories.map((category, index) => (
                     <div key={index} className="category-item">
                       <div className="item-icon">🏷️</div>
                       <div className="item-content">
@@ -209,6 +255,9 @@ const AdminDashboard = ({ activeTab: propActiveTab = 'dashboard' }) => {
        
        case 'brands':
          return <BrandManagement />;
+       
+       case 'drivers':
+         return <DriverManagement />;
       
       case 'webpages':
         return (

@@ -63,7 +63,12 @@ const HeaderSimple = () => {
     },
     { 
       nameKey: 'nav.serviceSupport', 
-      path: '/service-support' 
+      path: '/service-support',
+      hasDropdown: true,
+      dropdownItems: [
+        { nameKey: 'nav.service', path: '/service-support' },
+        { nameKey: 'nav.drivers', path: '/drivers' }
+      ]
     },
     { 
       nameKey: 'nav.about', 
@@ -214,6 +219,65 @@ const HeaderSimple = () => {
               }, 200);
             }}
           />
+        )}
+
+        {/* Service & Support Dropdown */}
+        {hoveredNavItem === 'nav.serviceSupport' && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '12px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              padding: '8px 0',
+              minWidth: '200px',
+              zIndex: 1000,
+              marginTop: '8px'
+            }}
+            onMouseEnter={() => {
+              if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+                hoverTimeoutRef.current = null;
+              }
+            }}
+            onMouseLeave={() => {
+              hoverTimeoutRef.current = setTimeout(() => {
+                setIsProductDropdownOpen(false);
+                setHoveredNavItem(null);
+              }, 200);
+            }}
+          >
+            {navItems.find(item => item.nameKey === 'nav.serviceSupport')?.dropdownItems?.map((dropdownItem) => (
+              <Link
+                key={dropdownItem.nameKey}
+                to={dropdownItem.path}
+                style={{
+                  display: 'block',
+                  padding: '12px 16px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  textDecoration: 'none',
+                  color: location.pathname === dropdownItem.path ? '#667eea' : '#374151',
+                  transition: 'all 0.2s ease',
+                  borderBottom: '1px solid #f3f4f6'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#f8fafc';
+                  e.target.style.color = '#667eea';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = location.pathname === dropdownItem.path ? '#667eea' : '#374151';
+                }}
+              >
+                {getTranslation(dropdownItem.nameKey, language)}
+              </Link>
+            ))}
+          </div>
         )}
 
         {/* Right Section - Search and Language */}
@@ -446,7 +510,7 @@ const HeaderSimple = () => {
       </nav>
 
       {/* Responsive CSS */}
-      <style jsx>{`
+      <style>{`
         @media (max-width: 1024px) {
           .desktop-nav {
             display: none !important;

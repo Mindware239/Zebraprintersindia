@@ -23,7 +23,7 @@ const SubcategoryManagement = () => {
   const loadSubcategories = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/subcategories');
+      const response = await fetch('http://localhost:3000/api/subcategories');
       if (response.ok) {
         const data = await response.json();
         setSubcategories(data);
@@ -39,7 +39,7 @@ const SubcategoryManagement = () => {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/categories');
+      const response = await fetch('http://localhost:3000/api/categories');
       if (response.ok) {
         const data = await response.json();
         setCategories(data);
@@ -73,8 +73,8 @@ const SubcategoryManagement = () => {
 
     try {
       const url = editingSubcategory 
-        ? `http://localhost:5000/api/subcategories/${editingSubcategory.id}`
-        : 'http://localhost:5000/api/subcategories';
+        ? `http://localhost:3000/api/subcategories/${editingSubcategory.id}`
+        : 'http://localhost:3000/api/subcategories';
       
       const method = editingSubcategory ? 'PUT' : 'POST';
       
@@ -113,7 +113,7 @@ const SubcategoryManagement = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this subcategory?')) {
       try {
-        const response = await fetch(`http://localhost:5000/api/subcategories/${id}`, {
+        const response = await fetch(`http://localhost:3000/api/subcategories/${id}`, {
           method: 'DELETE'
         });
 

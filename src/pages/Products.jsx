@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Filter, Search, Star, ShoppingCart, Eye, Download } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useParams, useNavigate } from 'react-router-dom';
 
 const Products = () => {
   const { isEnglish } = useLanguage();
+  const { category } = useParams();
+  const navigate = useNavigate();
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('name');
@@ -12,12 +15,35 @@ const Products = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedDescriptions, setExpandedDescriptions] = useState({});
+
+  // Function to truncate text
+  const truncateText = (text, maxLength = 120) => {
+    if (!text) return 'No description available';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
+  // Function to toggle description expansion
+  const toggleDescription = (productId) => {
+    setExpandedDescriptions(prev => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }));
+  };
+
+  // Set category from URL parameter
+  useEffect(() => {
+    if (category) {
+      setSelectedCategory(category);
+    }
+  }, [category]);
 
   // Fetch products from API
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/products');
+        const response = await fetch('http://localhost:3000/api/products');
         if (response.ok) {
           const data = await response.json();
           setProducts(data);
@@ -29,7 +55,7 @@ const Products = () => {
 
     const fetchCategories = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/categories');
+        const response = await fetch('http://localhost:3000/api/categories');
         if (response.ok) {
           const data = await response.json();
           setCategories(data);
@@ -47,7 +73,27 @@ const Products = () => {
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (product.shortDescription && product.shortDescription.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+    
+    let matchesCategory = false;
+    if (selectedCategory === 'all') {
+      matchesCategory = true;
+    } else {
+      // Check if it matches the category (case insensitive)
+      const productCategory = product.category?.toLowerCase();
+      const selectedCategoryLower = selectedCategory.toLowerCase();
+      
+      // Check category match
+      if (productCategory === selectedCategoryLower) {
+        matchesCategory = true;
+      }
+      
+      // Check subcategory match (for dropdown navigation)
+      if (product.subcategory_name === selectedCategory) {
+        matchesCategory = true;
+      }
+    }
+    
+    
     return matchesSearch && matchesCategory;
   });
 
@@ -183,7 +229,10 @@ const Products = () => {
     transition: 'all 0.3s ease',
     border: '1px solid #e5e7eb',
     position: 'relative',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%'
   };
 
   const productImageStyles = {
@@ -192,7 +241,10 @@ const Products = () => {
     objectFit: 'cover',
     borderRadius: '12px',
     marginBottom: '16px',
-    backgroundColor: '#f3f4f6'
+    backgroundColor: '#f3f4f6',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   };
 
   const productNameStyles = {
@@ -206,7 +258,17 @@ const Products = () => {
     fontSize: '14px',
     color: '#6b7280',
     marginBottom: '16px',
-    lineHeight: 1.5
+    lineHeight: 1.5,
+    flex: '1'
+  };
+
+  const readMoreStyles = {
+    color: '#3b82f6',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '500',
+    textDecoration: 'underline',
+    marginTop: '4px'
   };
 
   const productPriceStyles = {
@@ -247,7 +309,8 @@ const Products = () => {
 
   const productActionsStyles = {
     display: 'flex',
-    gap: '8px'
+    gap: '8px',
+    marginTop: 'auto'
   };
 
   const buttonStyles = {
@@ -309,7 +372,7 @@ const Products = () => {
             Loading products...
           </div>
         </div>
-        <style jsx>{`
+        <style>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -369,8 +432,8 @@ const Products = () => {
                   {isEnglish ? 'All Products' : 'सभी उत्पाद'}
                 </option>
                 {categories.map(category => (
-                  <option key={category.id} value={category.name}>
-                    {category.name}
+                  <option key={category.id} value={category.name.toLowerCase()}>
+                    {category.display_name || category.name}
                   </option>
                 ))}
               </select>
@@ -445,19 +508,42 @@ const Products = () => {
                     </div>
                   )}
                   
-                  <img
-                    src={product.image || '/placeholder-product.jpg'}
-                    alt={product.name}
-                    style={productImageStyles}
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
+                  <div style={productImageStyles}>
+                    <img
+                      src={product.image || '/placeholder-product.jpg'}
+                      alt={product.name}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        borderRadius: '12px'
+                      }}
+                      onError={(e) => {
+                        e.target.src = '/placeholder-product.jpg';
+                      }}
+                    />
+                  </div>
                   
                   <h3 style={productNameStyles}>{product.name}</h3>
-                  <p style={productDescriptionStyles}>
-                    {product.shortDescription || product.description || 'No description available'}
-                  </p>
+                  <div style={productDescriptionStyles}>
+                    <p>
+                      {expandedDescriptions[product.id] 
+                        ? (product.shortDescription || product.description || 'No description available')
+                        : truncateText(product.shortDescription || product.description || 'No description available')
+                      }
+                    </p>
+                    {(product.shortDescription || product.description || '').length > 120 && (
+                      <span 
+                        style={readMoreStyles}
+                        onClick={() => toggleDescription(product.id)}
+                      >
+                        {expandedDescriptions[product.id] 
+                          ? (isEnglish ? 'Read less' : 'कम पढ़ें')
+                          : (isEnglish ? 'Read more' : 'और पढ़ें')
+                        }
+                      </span>
+                    )}
+                  </div>
                   
                   {product.price && (
                     <div style={productPriceStyles}>₹{product.price}</div>
@@ -491,7 +577,10 @@ const Products = () => {
                   </div>
                   
                   <div style={productActionsStyles}>
-                    <button style={primaryButtonStyles}>
+                    <button 
+                      style={primaryButtonStyles}
+                      onClick={() => navigate(`/product/${product.id}`)}
+                    >
                       <Eye style={{ width: '16px', height: '16px' }} />
                       {isEnglish ? 'View' : 'देखें'}
                     </button>

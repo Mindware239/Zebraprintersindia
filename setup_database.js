@@ -1,6 +1,10 @@
-const mysql = require('mysql2');
-const fs = require('fs');
-const path = require('path');
+import mysql from 'mysql2';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Database connection
 const db = mysql.createConnection({

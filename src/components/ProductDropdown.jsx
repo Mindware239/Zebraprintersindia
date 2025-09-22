@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Printer, Scan, Radio, Tag, Settings, Wrench, Headphones } from 'lucide-react';
+import apiService from '../services/api';
 import './ProductDropdown.css';
 
 const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
@@ -24,8 +25,7 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/dropdown-data');
-        const data = await response.json();
+        const data = await apiService.getDropdownData();
         setDropdownData(data);
         setIsLoading(false);
       } catch (error) {

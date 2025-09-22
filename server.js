@@ -25,7 +25,11 @@ const storage = multer.diskStorage({
     } else if (file.fieldname === 'pdf') {
       cb(null, 'uploads/pdfs/');
     } else if (file.fieldname === 'file') {
-      cb(null, 'uploads/temp/'); // For bulk import files
+      if (req.path.includes('/drivers')) {
+        cb(null, 'uploads/drivers/');
+      } else {
+        cb(null, 'uploads/temp/'); // For bulk import files
+      }
     }
   },
   filename: function (req, file, cb) {
@@ -53,16 +57,38 @@ const upload = multer({
         cb(new Error('Only PDF files are allowed for datasheets'));
       }
     } else if (file.fieldname === 'file') {
-      // Allow CSV and Excel files for bulk import
-      const allowedMimes = [
-        'text/csv',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      ];
-      if (allowedMimes.includes(file.mimetype)) {
-        cb(null, true);
+      if (req.path.includes('/drivers')) {
+        // For driver files
+        const allowedTypes = [
+          'application/x-msdownload', // .exe
+          'application/x-msi', // .msi
+          'application/x-apple-diskimage', // .dmg
+          'application/x-pkg', // .pkg
+          'application/vnd.debian.binary-package', // .deb
+          'application/x-rpm', // .rpm
+          'application/vnd.android.package-archive', // .apk
+          'application/octet-stream' // Generic binary files
+        ];
+        const allowedExtensions = ['.exe', '.msi', '.dmg', '.pkg', '.deb', '.rpm', '.apk', '.ipa'];
+        const fileExtension = path.extname(file.originalname).toLowerCase();
+        
+        if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only executable files (.exe, .msi, .dmg, .pkg, .deb, .rpm, .apk, .ipa) are allowed for drivers'));
+        }
       } else {
-        cb(new Error('Only CSV and Excel files are allowed for bulk import'));
+        // Allow CSV and Excel files for bulk import
+        const allowedMimes = [
+          'text/csv',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ];
+        if (allowedMimes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only CSV and Excel files are allowed for bulk import'));
+        }
       }
     } else {
       cb(null, true);
@@ -72,18 +98,35 @@ const upload = multer({
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'],
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
+
+// Additional CORS headers to ensure credentials are properly set
+app.use((req, res, next) => {
+  const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'];
+  const origin = req.headers.origin;
+  
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  next();
+});
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
+app.use('/downloads', express.static('uploads/drivers'));
 
 // Database connection with better error handling
 const db = mysql.createConnection({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '', // XAMPP default password is empty
-  database: process.env.DB_NAME || 'zebra_db',
+  host: 'localhost',
+  user: 'root',
+  password: '', // XAMPP default password is empty
+  database: 'zebra_db',
   multipleStatements: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -449,7 +492,23 @@ app.post('/api/products/bulk-import', upload.single('file'), async (req, res) =>
 
   } catch (error) {
     console.error('Bulk import error:', error);
-    res.status(500).json({ error: 'Failed to import products', details: error.message });
+    
+    // Clean up uploaded file if it exists
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+        console.log('Uploaded file cleaned up after error');
+      } catch (cleanupError) {
+        console.warn('Failed to clean up uploaded file after error:', cleanupError.message);
+      }
+    }
+    
+    // Always return JSON response
+    res.status(500).json({ 
+      error: 'Failed to import products', 
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -619,21 +678,20 @@ function validateProductsEnhanced(products) {
       });
     }
 
-    // Check for empty columns at the end
+    // Check for empty columns at the end (only warn, don't fail)
     const productKeys = Object.keys(product);
     const lastNonEmptyIndex = productKeys.length - 1;
+    let emptyColumnsCount = 0;
     for (let i = lastNonEmptyIndex; i >= 0; i--) {
       if (product[productKeys[i]] && product[productKeys[i]].toString().trim() !== '') {
         break;
       }
-      if (i < productKeys.length - 1) {
-        errors.push({
-          rowNumber: rowNumber,
-          productName: productName,
-          error: `Empty columns detected at the end of the row`
-        });
-        break;
-      }
+      emptyColumnsCount++;
+    }
+    
+    // Only warn if there are more than 3 empty columns (likely a real issue)
+    if (emptyColumnsCount > 3) {
+      console.warn(`Row ${rowNumber}: ${emptyColumnsCount} empty columns detected at the end`);
     }
   });
 
@@ -711,9 +769,24 @@ async function insertProductsEnhanced(products) {
         if (product.subcategory_id) {
           subcategoryId = product.subcategory_id;
         } else if (product.subcategory) {
-          // If subcategory is provided as name, we need to find the ID
-          // For now, we'll set it to null and let the user know
-          subcategoryId = null;
+          // If subcategory is provided as name, find the corresponding ID
+          try {
+            const subcategoryQuery = 'SELECT id FROM subcategories WHERE name = ? OR display_name = ?';
+            const subcategoryResult = await new Promise((resolve, reject) => {
+              db.query(subcategoryQuery, [product.subcategory, product.subcategory], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+              });
+            });
+            
+            if (subcategoryResult.length > 0) {
+              subcategoryId = subcategoryResult[0].id;
+            } else {
+              console.warn(`Subcategory not found: ${product.subcategory}`);
+            }
+          } catch (error) {
+            console.warn(`Error finding subcategory for ${product.subcategory}:`, error.message);
+          }
         }
 
         // Generate unique slug if needed
@@ -852,9 +925,24 @@ async function insertProducts(products) {
         if (product.subcategory_id) {
           subcategoryId = product.subcategory_id;
         } else if (product.subcategory) {
-          // If subcategory is provided as name, we need to find the ID
-          // For now, we'll set it to null and let the user know
-          subcategoryId = null;
+          // If subcategory is provided as name, find the corresponding ID
+          try {
+            const subcategoryQuery = 'SELECT id FROM subcategories WHERE name = ? OR display_name = ?';
+            const subcategoryResult = await new Promise((resolve, reject) => {
+              db.query(subcategoryQuery, [product.subcategory, product.subcategory], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+              });
+            });
+            
+            if (subcategoryResult.length > 0) {
+              subcategoryId = subcategoryResult[0].id;
+            } else {
+              console.warn(`Subcategory not found: ${product.subcategory}`);
+            }
+          } catch (error) {
+            console.warn(`Error finding subcategory for ${product.subcategory}:`, error.message);
+          }
         }
 
         // Generate unique slug if needed
@@ -1314,6 +1402,184 @@ app.delete('/api/brands/:id', (req, res) => {
   });
 });
 
+// ==================== DRIVERS API ====================
+
+// Get all drivers
+app.get('/api/drivers', (req, res) => {
+  const query = 'SELECT * FROM drivers WHERE status = "active" ORDER BY created_at DESC';
+  db.query(query, (err, results) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to fetch drivers' });
+    } else {
+      // Format the results to match frontend expectations
+      const formattedResults = results.map(driver => ({
+        id: driver.id,
+        name: driver.name,
+        version: driver.version,
+        category: driver.category,
+        operatingSystem: driver.operating_system,
+        description: driver.description,
+        compatibility: driver.compatibility,
+        fileName: driver.file_name,
+        fileSize: driver.file_size ? formatFileSize(driver.file_size) : '0 Bytes',
+        downloadUrl: driver.download_url || `/downloads/${driver.file_name}`,
+        releaseDate: driver.release_date,
+        status: driver.status
+      }));
+      res.json(formattedResults);
+    }
+  });
+});
+
+// Get single driver
+app.get('/api/drivers/:id', (req, res) => {
+  const { id } = req.params;
+  const query = 'SELECT * FROM drivers WHERE id = ?';
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to fetch driver' });
+    } else if (results.length === 0) {
+      res.status(404).json({ error: 'Driver not found' });
+    } else {
+      const driver = results[0];
+      res.json({
+        id: driver.id,
+        name: driver.name,
+        version: driver.version,
+        category: driver.category,
+        operatingSystem: driver.operating_system,
+        description: driver.description,
+        compatibility: driver.compatibility,
+        fileName: driver.file_name,
+        fileSize: driver.file_size ? formatFileSize(driver.file_size) : '0 Bytes',
+        downloadUrl: driver.download_url || `/downloads/${driver.file_name}`,
+        releaseDate: driver.release_date,
+        status: driver.status
+      });
+    }
+  });
+});
+
+// Create driver
+app.post('/api/drivers', upload.single('file'), (req, res) => {
+  try {
+    const { name, version, category, operatingSystem, description, compatibility } = req.body;
+    const file = req.file;
+    
+    if (!file) {
+      return res.status(400).json({ error: 'Driver file is required' });
+    }
+
+    const filePath = `/uploads/drivers/${file.filename}`;
+    const downloadUrl = `/downloads/${file.filename}`;
+    const fileSize = file.size;
+
+    const query = `INSERT INTO drivers (name, version, category, operating_system, description, compatibility, file_name, file_path, file_size, download_url, release_date)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    
+    const values = [
+      name,
+      version,
+      category,
+      operatingSystem,
+      description,
+      compatibility,
+      file.originalname,
+      filePath,
+      fileSize,
+      downloadUrl,
+      new Date().toISOString().split('T')[0]
+    ];
+
+    db.query(query, values, (err, results) => {
+      if (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Failed to create driver' });
+      } else {
+        res.json({ 
+          message: 'Driver created successfully',
+          id: results.insertId 
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error creating driver:', error);
+    res.status(500).json({ error: 'Failed to create driver' });
+  }
+});
+
+// Update driver
+app.put('/api/drivers/:id', upload.single('file'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, version, category, operatingSystem, description, compatibility } = req.body;
+    const file = req.file;
+
+    let query, values;
+
+    if (file) {
+      // Update with new file
+      const filePath = `/uploads/drivers/${file.filename}`;
+      const downloadUrl = `/downloads/${file.filename}`;
+      const fileSize = file.size;
+
+      query = `UPDATE drivers SET name = ?, version = ?, category = ?, operating_system = ?, 
+               description = ?, compatibility = ?, file_name = ?, file_path = ?, file_size = ?, 
+               download_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+      
+      values = [
+        name, version, category, operatingSystem, description, compatibility,
+        file.originalname, filePath, fileSize, downloadUrl, id
+      ];
+    } else {
+      // Update without changing file
+      query = `UPDATE drivers SET name = ?, version = ?, category = ?, operating_system = ?, 
+               description = ?, compatibility = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+      
+      values = [name, version, category, operatingSystem, description, compatibility, id];
+    }
+
+    db.query(query, values, (err, results) => {
+      if (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Failed to update driver' });
+      } else if (results.affectedRows === 0) {
+        res.status(404).json({ error: 'Driver not found' });
+      } else {
+        res.json({ message: 'Driver updated successfully' });
+      }
+    });
+  } catch (error) {
+    console.error('Error updating driver:', error);
+    res.status(500).json({ error: 'Failed to update driver' });
+  }
+});
+
+// Delete driver
+app.delete('/api/drivers/:id', (req, res) => {
+  const { id } = req.params;
+  const query = 'DELETE FROM drivers WHERE id = ?';
+  
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to delete driver' });
+    } else if (results.affectedRows === 0) {
+      res.status(404).json({ error: 'Driver not found' });
+    } else {
+      res.json({ message: 'Driver deleted successfully' });
+    }
+  });
+});
+
+// Helper function to format file size
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 // Sample Excel download endpoint
 app.get('/api/import/sample-excel', (req, res) => {
   try {
@@ -1382,12 +1648,12 @@ app.get('/api/auth/check', (req, res) => {
 
 // Login endpoint
 app.post('/api/auth/login', (req, res) => {
-  const { identifier, password, rememberMe } = req.body;
+  const { username, password, rememberMe } = req.body;
   
-  console.log('Login attempt:', { identifier, password, rememberMe });
+  console.log('Login attempt:', { username, password, rememberMe });
   
   // Simple hardcoded admin credentials for now
-  if (identifier === 'Admin' && password === '17sept2025') {
+  if (username === 'admin' && password === 'admin123') {
     // In a real app, you'd create a proper session or JWT token
     res.json({
       success: true,
@@ -1440,6 +1706,25 @@ app.put('/api/auth/profile', (req, res) => {
   });
 });
 
+// Global error handler to ensure JSON responses
+app.use((error, req, res, next) => {
+  console.error('Global error handler:', error);
+  
+  // If response was already sent, delegate to default Express error handler
+  if (res.headersSent) {
+    return next(error);
+  }
+  
+  // Always return JSON response
+  res.status(500).json({
+    error: 'Internal server error',
+    message: error.message,
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`✅ Connected to MySQL database: ${process.env.DB_NAME || 'zebra_db'}`);
+  console.log(`📊 Database connection established successfully`);
 });

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import './AdminLogin.css';
 
 const AdminLogin = () => {
-  const [identifier, setIdentifier] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
@@ -17,9 +17,9 @@ const AdminLogin = () => {
     setError('');
     setLoading(true);
 
-    console.log('Attempting login with:', { identifier, password, rememberMe });
+    console.log('Attempting login with:', { username, password, rememberMe });
     
-    const result = await login({ identifier, password }, rememberMe);
+    const result = await login({ username, password }, rememberMe);
     
     console.log('Login result:', result);
 
@@ -45,14 +45,14 @@ const AdminLogin = () => {
           {error && <div className="error-message">{error}</div>}
           
           <div className="form-group">
-            <label htmlFor="identifier">Username or Email</label>
+            <label htmlFor="username">Username</label>
             <input
               type="text"
-              id="identifier"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
-              placeholder="Enter username or email"
+              placeholder="Enter username"
             />
           </div>
 

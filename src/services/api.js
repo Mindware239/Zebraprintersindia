@@ -1,5 +1,5 @@
 // API service for connecting frontend with backend
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:3000/api';
 
 class ApiService {
   // Generic fetch method
@@ -64,6 +64,79 @@ class ApiService {
   // Categories API
   async getCategories() {
     return this.fetchData('/categories');
+  }
+
+  // Dropdown data API
+  async getDropdownData() {
+    return this.fetchData('/dropdown-data');
+  }
+
+  // Subcategories API
+  async getSubcategories() {
+    return this.fetchData('/subcategories');
+  }
+
+  // Brands API
+  async getBrands() {
+    return this.fetchData('/brands');
+  }
+
+  // Authentication API
+  async checkAuth() {
+    return this.fetchData('/auth/check');
+  }
+
+  async login(credentials) {
+    return this.fetchData('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+  }
+
+  async logout() {
+    return this.fetchData('/auth/logout', {
+      method: 'POST',
+    });
+  }
+
+  // Bulk import API
+  async bulkImportProducts(formData) {
+    return this.fetchData('/products/bulk-import', {
+      method: 'POST',
+      body: formData,
+      headers: {} // Let fetch set Content-Type for FormData
+    });
+  }
+
+  // Drivers API
+  async getDrivers() {
+    return this.fetchData('/drivers');
+  }
+
+  async getDriverById(id) {
+    return this.fetchData(`/drivers/${id}`);
+  }
+
+  async createDriver(formData) {
+    return this.fetchData('/drivers', {
+      method: 'POST',
+      body: formData,
+      headers: {} // Let fetch set Content-Type for FormData
+    });
+  }
+
+  async updateDriver(id, formData) {
+    return this.fetchData(`/drivers/${id}`, {
+      method: 'PUT',
+      body: formData,
+      headers: {} // Let fetch set Content-Type for FormData
+    });
+  }
+
+  async deleteDriver(id) {
+    return this.fetchData(`/drivers/${id}`, {
+      method: 'DELETE',
+    });
   }
 }
 

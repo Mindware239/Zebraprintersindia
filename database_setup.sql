@@ -111,3 +111,30 @@ CREATE TABLE IF NOT EXISTS admin_users (
 -- Insert default admin user (password: admin123)
 INSERT INTO admin_users (username, email, password, role) VALUES
 ('admin', 'admin@zebraprintr.com', '$2b$10$rQZ8K9vL2mN3pO4qR5sT6uV7wX8yZ9aB0cD1eF2gH3iJ4kL5mN6oP7qR8sT9uV', 'admin');
+
+-- Create drivers table
+CREATE TABLE IF NOT EXISTS drivers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    version VARCHAR(50) NOT NULL,
+    category ENUM('printer', 'scanner', 'mobile', 'utility') NOT NULL,
+    operating_system ENUM('windows', 'macos', 'linux', 'android', 'ios') NOT NULL,
+    description TEXT,
+    compatibility TEXT,
+    file_name VARCHAR(255),
+    file_path VARCHAR(500),
+    file_size BIGINT,
+    download_url VARCHAR(500),
+    release_date DATE,
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Insert sample drivers data
+INSERT INTO drivers (name, version, category, operating_system, description, compatibility, file_name, file_size, release_date) VALUES
+('Zebra ZD420 Driver', '2.0.1', 'printer', 'windows', 'Official driver for Zebra ZD420 desktop printer', 'Windows 10, Windows 11', 'zebra-zd420-driver-v2.0.1.exe', 15925248, '2024-01-15'),
+('Zebra ZD620 Driver', '1.8.5', 'printer', 'windows', 'Official driver for Zebra ZD620 industrial printer', 'Windows 10, Windows 11, Windows Server 2019', 'zebra-zd620-driver-v1.8.5.exe', 19608320, '2024-01-10'),
+('Zebra DS2208 Scanner Driver', '3.2.1', 'scanner', 'windows', 'Driver for Zebra DS2208 handheld barcode scanner', 'Windows 10, Windows 11', 'zebra-ds2208-driver-v3.2.1.exe', 13002342, '2024-01-08'),
+('Zebra MC3300 Mobile Driver', '2.1.3', 'mobile', 'android', 'Driver for Zebra MC3300 mobile computer', 'Android 8.0+', 'zebra-mc3300-android-driver-v2.1.3.apk', 9338880, '2024-01-05'),
+('Zebra Setup Utilities', '4.1.2', 'utility', 'windows', 'Complete setup and configuration utilities for Zebra devices', 'Windows 10, Windows 11', 'zebra-setup-utilities-v4.1.2.exe', 26843546, '2024-01-12');
