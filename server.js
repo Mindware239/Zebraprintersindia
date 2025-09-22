@@ -1749,20 +1749,39 @@ app.put('/api/auth/profile', (req, res) => {
   });
 });
 
-// Catch-all handler: send back React's index.html file for any non-API routes
-app.use((req, res, next) => {
-  // Don't serve React app for API routes
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'API endpoint not found' });
-  }
-  
-  // Serve React app for all other routes
+// Serve React app for root route
+app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'), (err) => {
     if (err) {
       console.error('Error serving React app:', err);
       res.status(500).send('Error loading application');
     }
   });
+});
+
+// Serve React app for other non-API routes
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+app.get('/products', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+app.get('/about', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+app.get('/contact', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+app.get('/drivers', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+app.get('/service-support', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // Global error handler to ensure JSON responses
