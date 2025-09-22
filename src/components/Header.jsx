@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Phone, Mail } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Menu, X, Phone, Mail, ChevronDown } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import MINDWARELogo from './MINDWARELogo';
+import ProductDropdown from './ProductDropdown';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -38,7 +40,7 @@ const Header = () => {
 
   const navItems = [
     { name: 'Home', path: '/' },
-    { name: 'Products', path: '/products' },
+    { name: 'Products', path: '/products', hasDropdown: true },
     { name: 'Service & Support', path: '/service-support' },
     { name: 'About', path: '/about' },
     { name: 'Contact', path: '/contact' },
@@ -95,38 +97,10 @@ const Header = () => {
     color: 'inherit'
   };
 
-  const logoIconStyles = {
-    width: '40px',
-    height: '40px',
-    backgroundColor: '#2563eb',
-    borderRadius: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  };
 
-  const logoTextStyles = {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    fontSize: '20px'
-  };
 
-  const logoTextContainerStyles = {
-    display: isMobile ? 'none' : 'block'
-  };
 
-  const companyNameStyles = {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    color: '#1f2937',
-    margin: 0
-  };
 
-  const companySubtextStyles = {
-    fontSize: '14px',
-    color: '#6b7280',
-    margin: 0
-  };
 
   const desktopNavStyles = {
     display: isMobile ? 'none' : 'flex',
@@ -271,35 +245,50 @@ const Header = () => {
           {/* Desktop Navigation */}
           <div className="desktop-nav" style={desktopNavStyles}>
             {navItems.map((item) => (
-              <Link
+              <div
                 key={item.name}
-                to={item.path}
-                style={navLinkStyles(location.pathname === item.path)}
-                onMouseEnter={(e) => {
-                  e.target.style.color = '#2563eb';
-                  e.target.style.backgroundColor = '#f3f4f6';
+                style={{ position: 'relative' }}
+                onMouseEnter={() => {
+                  if (item.hasDropdown) {
+                    setIsProductDropdownOpen(true);
+                  }
                 }}
-                onMouseLeave={(e) => {
-                  e.target.style.color = location.pathname === item.path ? '#2563eb' : '#374151';
-                  e.target.style.backgroundColor = 'transparent';
+                onMouseLeave={() => {
+                  if (item.hasDropdown) {
+                    setIsProductDropdownOpen(false);
+                  }
                 }}
               >
-                {item.name}
-                {location.pathname === item.path && (
-                  <motion.div
-                    layoutId="activeTab"
-                    style={{
-                      position: 'absolute',
-                      bottom: '-2px',
-                      left: '0',
-                      right: '0',
-                      height: '2px',
-                      backgroundColor: '#2563eb',
-                      borderRadius: '1px'
-                    }}
-                  />
-                )}
-              </Link>
+                <Link
+                  to={item.path}
+                  style={navLinkStyles(location.pathname === item.path)}
+                  onMouseEnter={(e) => {
+                    e.target.style.color = '#2563eb';
+                    e.target.style.backgroundColor = '#f3f4f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.color = location.pathname === item.path ? '#2563eb' : '#374151';
+                    e.target.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  {item.name}
+                  {item.hasDropdown && <ChevronDown size={16} style={{ marginLeft: '4px' }} />}
+                  {location.pathname === item.path && (
+                    <motion.div
+                      layoutId="activeTab"
+                      style={{
+                        position: 'absolute',
+                        bottom: '-2px',
+                        left: '0',
+                        right: '0',
+                        height: '2px',
+                        backgroundColor: '#2563eb',
+                        borderRadius: '1px'
+                      }}
+                    />
+                  )}
+                </Link>
+              </div>
             ))}
           </div>
 
@@ -319,6 +308,14 @@ const Header = () => {
           </button>
         </div>
       </nav>
+
+      {/* Product Dropdown */}
+      <ProductDropdown
+        isOpen={isProductDropdownOpen}
+        onClose={() => setIsProductDropdownOpen(false)}
+        onMouseEnter={() => setIsProductDropdownOpen(true)}
+        onMouseLeave={() => setIsProductDropdownOpen(false)}
+      />
 
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
