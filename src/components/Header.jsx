@@ -219,7 +219,7 @@ const Header = () => {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Mail size={16} />
-              <span>info@zebraprintersindia.com</span>
+              <span>gm@zebraprintersindia.com</span>
             </div>
           </div>
           <div style={{ 
@@ -396,11 +396,11 @@ const Header = () => {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Phone size={16} />
-                    <span>+91 9717122688</span>
+                    <span>+91 8527522688</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Mail size={16} />
-                    <span>info@zebraprintersindia.com</span>
+                    <span>gm@zebraprintersindia.com</span>
                   </div>
                 </div>
               </div>

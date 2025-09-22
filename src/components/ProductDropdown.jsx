@@ -10,6 +10,9 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
   const [isLoading, setIsLoading] = useState(true);
   const dropdownRef = useRef(null);
 
+  // Debug logging
+  console.log('ProductDropdown rendered, isOpen:', isOpen);
+
   // Category icons mapping
   const categoryIcons = {
     'printers': Printer,
@@ -21,6 +24,49 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
     'service': Headphones
   };
 
+  // Static fallback data
+  const staticDropdownData = {
+    'printers': {
+      id: 1,
+      display_name: 'Printers',
+      description: 'Barcode and label printers for all business needs',
+      subcategories: [
+        { id: 1, name: 'desktop-printers', display_name: 'Desktop Printers', description: 'Compact desktop printing solutions' },
+        { id: 2, name: 'industrial-printers', display_name: 'Industrial Printers', description: 'Heavy-duty industrial printing' },
+        { id: 3, name: 'mobile-printers', display_name: 'Mobile Printers', description: 'Portable printing solutions' }
+      ]
+    },
+    'scanners': {
+      id: 2,
+      display_name: 'Barcode Scanners',
+      description: 'Advanced scanning solutions for every industry',
+      subcategories: [
+        { id: 4, name: 'handheld-scanners', display_name: 'Handheld Scanners', description: 'Portable scanning devices' },
+        { id: 5, name: 'fixed-mount-scanners', display_name: 'Fixed Mount Scanners', description: 'Stationary scanning solutions' },
+        { id: 6, name: 'mobile-computers', display_name: 'Mobile Computers', description: 'All-in-one mobile computing' }
+      ]
+    },
+    'accessories': {
+      id: 3,
+      display_name: 'Accessories',
+      description: 'Accessories for printers and scanners',
+      subcategories: [
+        { id: 7, name: 'labels', display_name: 'Labels & Supplies', description: 'Labels, ribbons, and consumables' },
+        { id: 8, name: 'cables', display_name: 'Cables & Connectors', description: 'Connectivity solutions' },
+        { id: 9, name: 'mounts', display_name: 'Mounts & Stands', description: 'Installation accessories' }
+      ]
+    },
+    'software': {
+      id: 4,
+      display_name: 'Software',
+      description: 'Professional software solutions',
+      subcategories: [
+        { id: 10, name: 'design-software', display_name: 'Design Software', description: 'Label and barcode design tools' },
+        { id: 11, name: 'management-software', display_name: 'Management Software', description: 'Device and inventory management' }
+      ]
+    }
+  };
+
   // Fetch dropdown data from API
   useEffect(() => {
     const fetchDropdownData = async () => {
@@ -30,6 +76,8 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
         setIsLoading(false);
       } catch (error) {
         console.error('Error fetching dropdown data:', error);
+        // Use static data as fallback
+        setDropdownData(staticDropdownData);
         setIsLoading(false);
       }
     };
@@ -56,7 +104,12 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    console.log('ProductDropdown not open, returning null');
+    return null;
+  }
+
+  console.log('ProductDropdown is open, rendering dropdown');
 
   return (
     <div 
