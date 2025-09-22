@@ -20,7 +20,7 @@ const CategoryManagement = () => {
   const loadCategories = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/categories');
+      const response = await fetch('/api/categories');
       if (response.ok) {
         const data = await response.json();
         setCategories(data);
@@ -55,8 +55,8 @@ const CategoryManagement = () => {
 
     try {
       const url = editingCategory 
-        ? `http://localhost:3000/api/categories/${editingCategory.id}`
-        : 'http://localhost:3000/api/categories';
+        ? `/api/categories/${editingCategory.id}`
+        : '/api/categories';
       
       const method = editingCategory ? 'PUT' : 'POST';
       
@@ -94,7 +94,7 @@ const CategoryManagement = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this category?')) {
       try {
-        const response = await fetch(`http://localhost:3000/api/categories/${id}`, {
+        const response = await fetch(`/api/categories/${id}`, {
           method: 'DELETE'
         });
 

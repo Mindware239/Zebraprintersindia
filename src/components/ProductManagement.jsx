@@ -41,7 +41,7 @@ const ProductManagement = () => {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3000/api/products');
+      const response = await fetch('/api/products');
       const data = await response.json();
       setProducts(data);
     } catch (error) {
@@ -53,7 +53,7 @@ const ProductManagement = () => {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/categories');
+      const response = await fetch('/api/categories');
       const data = await response.json();
       setCategories(data);
     } catch (error) {
@@ -63,7 +63,7 @@ const ProductManagement = () => {
 
   const loadSubcategories = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/subcategories');
+      const response = await fetch('/api/subcategories');
       const data = await response.json();
       setSubcategories(data);
     } catch (error) {
@@ -123,8 +123,8 @@ const ProductManagement = () => {
       }
 
       const url = isEditing 
-        ? `http://localhost:3000/api/products/${editingProductId}`
-        : 'http://localhost:3000/api/products';
+        ? `/api/products/${editingProductId}`
+        : '/api/products';
       
       const method = isEditing ? 'PUT' : 'POST';
 
@@ -176,7 +176,7 @@ const ProductManagement = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        const response = await fetch(`http://localhost:3000/api/products/${id}`, {
+        const response = await fetch(`/api/products/${id}`, {
           method: 'DELETE'
         });
         if (response.ok) {
@@ -200,7 +200,7 @@ const ProductManagement = () => {
       try {
         setLoading(true);
         for (const id of selectedProducts) {
-          await fetch(`http://localhost:3000/api/products/${id}`, {
+          await fetch(`/api/products/${id}`, {
             method: 'DELETE'
           });
         }

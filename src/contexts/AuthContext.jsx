@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
       
-      const response = await fetch('http://localhost:3000/api/auth/check', {
+      const response = await fetch('/api/auth/check', {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -64,9 +64,9 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       console.log('AuthContext: Starting login process');
       console.log('AuthContext: Current origin:', window.location.origin);
-      console.log('AuthContext: Sending request to http://localhost:3000/api/auth/login');
+      console.log('AuthContext: Sending request to /api/auth/login');
       
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -106,7 +106,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch('http://localhost:3000/api/auth/logout', {
+      await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -124,7 +124,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3000/api/auth/register', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -151,7 +151,7 @@ export const AuthProvider = ({ children }) => {
   const changePassword = async (passwordData) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3000/api/auth/change-password', {
+      const response = await fetch('/api/auth/change-password', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -178,7 +178,7 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3000/api/auth/profile', {
+      const response = await fetch('/api/auth/profile', {
         method: 'PUT',
         credentials: 'include',
         headers: {

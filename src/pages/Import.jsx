@@ -19,7 +19,7 @@ const Import = () => {
   useEffect(() => {
     const checkServerStatus = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/products');
+        const response = await fetch('/api/products');
         if (response.ok) {
           setServerStatus('online');
         } else {
@@ -140,7 +140,7 @@ const Import = () => {
   // Export all products to CSV
   const exportProducts = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/products');
+      const response = await fetch('/api/products');
       const products = await response.json();
       
       const csvContent = [
@@ -214,7 +214,7 @@ const Import = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
 
-      const response = await fetch('http://localhost:3000/api/products/bulk-import', {
+      const response = await fetch('/api/products/bulk-import', {
         method: 'POST',
         body: formData,
         signal: controller.signal

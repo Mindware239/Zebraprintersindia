@@ -21,7 +21,7 @@ const BrandManagement = () => {
   const loadBrands = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/brands');
+      const response = await fetch('/api/brands');
       if (response.ok) {
         const data = await response.json();
         setBrands(data);
@@ -57,8 +57,8 @@ const BrandManagement = () => {
 
     try {
       const url = editingBrand 
-        ? `http://localhost:3000/api/brands/${editingBrand.id}`
-        : 'http://localhost:3000/api/brands';
+        ? `/api/brands/${editingBrand.id}`
+        : '/api/brands';
       
       const method = editingBrand ? 'PUT' : 'POST';
       
@@ -97,7 +97,7 @@ const BrandManagement = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this brand?')) {
       try {
-        const response = await fetch(`http://localhost:3000/api/brands/${id}`, {
+        const response = await fetch(`/api/brands/${id}`, {
           method: 'DELETE'
         });
 
