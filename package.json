@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "node server.js",
+    "start": "npm run build && node server.js",
     "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
     "setup-db": "node setup_database.js",
     "test-db": "node test_database.js"

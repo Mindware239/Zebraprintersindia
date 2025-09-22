@@ -138,6 +138,9 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 app.use('/downloads', express.static('uploads/drivers'));
 
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, 'dist')));
+
 // Database connection middleware
 app.use((req, res, next) => {
   // Add database connection to request object
@@ -1746,6 +1749,22 @@ app.put('/api/auth/profile', (req, res) => {
   res.status(501).json({
     success: false,
     message: 'Update profile not implemented yet'
+  });
+});
+
+// Catch-all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  // Don't serve React app for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  
+  // Serve React app for all other routes
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'), (err) => {
+    if (err) {
+      console.error('Error serving React app:', err);
+      res.status(500).send('Error loading application');
+    }
   });
 });
 
