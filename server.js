@@ -1750,7 +1750,7 @@ app.put('/api/auth/profile', (req, res) => {
 });
 
 // Catch-all handler: send back React's index.html file for any non-API routes
-app.get('/*', (req, res) => {
+app.use((req, res, next) => {
   // Don't serve React app for API routes
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API endpoint not found' });
