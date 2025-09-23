@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './ProductManagement.css';
 
 const ProductManagement = () => {
   const [activeView, setActiveView] = useState('overview'); // overview, add, import, export
@@ -226,117 +227,116 @@ const ProductManagement = () => {
   });
 
   const renderOverview = () => (
-    <div className="product-overview">
-      <div className="overview-header">
-        <h2>Product Management</h2>
+    <div className="product-management">
+      <div className="management-header">
+        <h1>Product Management</h1>
         <p>Manage all your products from this centralized dashboard</p>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="action-buttons">
-        <button 
-          className="btn btn-primary"
-          onClick={() => {
-            setIsEditing(false);
-            setEditingProductId(null);
-            setFormData({
-              name: '',
-              slug: '',
-              category: '',
-              subcategory_id: '',
-              shortDescription: '',
-              description: '',
-              specifications: '',
-              sku: '',
-              metaKeywords: '',
-              metaTitle: '',
-              metaDescription: '',
-              status: 'active',
-              featured: false,
-              image: null,
-              pdf: null
-            });
-            setActiveView('add');
-          }}
-        >
-          ➕ Add Product
-        </button>
-        {selectedProducts.length > 0 && (
+        
+        {/* Action Buttons */}
+        <div className="action-buttons">
           <button 
-            className="btn btn-danger"
-            onClick={handleBulkDelete}
+            className="btn-primary"
+            onClick={() => {
+              setIsEditing(false);
+              setEditingProductId(null);
+              setFormData({
+                name: '',
+                slug: '',
+                category: '',
+                subcategory_id: '',
+                shortDescription: '',
+                description: '',
+                specifications: '',
+                sku: '',
+                metaKeywords: '',
+                metaTitle: '',
+                metaDescription: '',
+                status: 'active',
+                featured: false,
+                image: null,
+                pdf: null
+              });
+              setActiveView('add');
+            }}
           >
-            🗑️ Delete Selected ({selectedProducts.length})
+            + Add Product
           </button>
-        )}
+          {selectedProducts.length > 0 && (
+            <button 
+              className="btn-secondary"
+              onClick={handleBulkDelete}
+            >
+              🗑️ Delete Selected ({selectedProducts.length})
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="filters">
-        <div className="search-box">
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
-          />
-        </div>
-        <div className="category-filter">
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="category-select"
-          >
-            <option value="all">All Categories</option>
-            {categories.map(category => (
-              <option key={category.id} value={category.name}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="filters-section">
+        <input
+          type="text"
+          placeholder="Search products..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="search-input"
+        />
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="category-select"
+        >
+          <option value="all">All Categories</option>
+          {categories.map(category => (
+            <option key={category.id} value={category.name}>
+              {category.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Products Table */}
       <div className="products-table-container">
-        <table className="products-table">
-          <thead>
-            <tr>
-              <th>
-                <input
-                  type="checkbox"
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedProducts(filteredProducts.map(p => p.id));
-                    } else {
-                      setSelectedProducts([]);
-                    }
-                  }}
-                />
-              </th>
-              <th>Image</th>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Sub-category</th>
-              <th>SKU</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
+        {loading ? (
+          <div className="loading-state">
+            <div className="loading-spinner"></div>
+            <p>Loading products...</p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">📦</div>
+            <h3>No products found</h3>
+            <p>Start by adding your first product to get started.</p>
+          </div>
+        ) : (
+          <table className="products-table">
+            <thead>
               <tr>
-                <td colSpan="9" className="loading-cell">Loading products...</td>
+                <th className="checkbox-column">
+                  <input
+                    type="checkbox"
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedProducts(filteredProducts.map(p => p.id));
+                      } else {
+                        setSelectedProducts([]);
+                      }
+                    }}
+                  />
+                </th>
+                <th className="image-column">Image</th>
+                <th className="name-column">Name</th>
+                <th className="category-column">Category</th>
+                <th className="subcategory-column">Sub-category</th>
+                <th className="sku-column">SKU</th>
+                <th className="status-column">Status</th>
+                <th className="actions-column">Actions</th>
               </tr>
-            ) : filteredProducts.length === 0 ? (
-              <tr>
-                <td colSpan="9" className="no-data-cell">No products found</td>
-              </tr>
-            ) : (
-              filteredProducts.map(product => (
+            </thead>
+            <tbody>
+              {filteredProducts.map(product => (
                 <tr key={product.id}>
-                  <td>
+                  <td className="checkbox-column">
                     <input
                       type="checkbox"
                       checked={selectedProducts.includes(product.id)}
@@ -349,59 +349,66 @@ const ProductManagement = () => {
                       }}
                     />
                   </td>
-                  <td>
+                  <td className="image-column">
                     <img 
                       src={product.image || '/placeholder-image.jpg'} 
                       alt={product.name}
-                      className="product-thumbnail"
+                      className="product-image"
                     />
                   </td>
-                  <td>
+                  <td className="name-column">
                     <div className="product-name">{product.name}</div>
-                    <div className="product-description">{product.shortDescription}</div>
+                    <div className="product-description">{product.shortDescription || product.description}</div>
                   </td>
-                  <td>{product.category_display_name || product.category}</td>
-                  <td>{product.subcategory_display_name || product.subcategory_name || '-'}</td>
-                  <td>{product.sku}</td>
-                  <td>
-                    <span className={`status-badge ${product.status}`}>
-                      {product.status}
+                  <td className="category-column">
+                    <span className="category-badge">
+                      {product.category_display_name || product.category}
                     </span>
                   </td>
-                  <td>{product.sku}</td>
-                  <td>
-                    <div className="action-buttons-small">
+                  <td className="subcategory-column">
+                    <span className="subcategory-badge">
+                      {product.subcategory_display_name || product.subcategory_name || '-'}
+                    </span>
+                  </td>
+                  <td className="sku-column">{product.sku}</td>
+                  <td className="status-column">
+                    <span className={`status-badge status-${product.status}`}>
+                      {product.status?.toUpperCase() || 'ACTIVE'}
+                    </span>
+                  </td>
+                  <td className="actions-column">
+                    <div className="action-buttons-cell">
                       <button 
-                        className="btn-small btn-edit"
+                        className="btn-icon btn-edit"
                         onClick={() => {
                           setIsEditing(true);
                           setEditingProductId(product.id);
                           setFormData({
                             ...product,
-                            // Keep existing image and PDF URLs, don't reset to null
                             image: product.image || null,
                             pdf: product.pdf || null,
-                            // Ensure we have the right category name for filtering
                             category: product.category || product.category_name
                           });
                           setActiveView('add');
                         }}
+                        title="Edit Product"
                       >
                         ✏️
                       </button>
                       <button 
-                        className="btn-small btn-delete"
+                        className="btn-icon btn-delete"
                         onClick={() => handleDelete(product.id)}
+                        title="Delete Product"
                       >
                         🗑️
                       </button>
                     </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
@@ -707,351 +714,6 @@ const ProductManagement = () => {
       {activeView === 'overview' ? renderOverview() : renderAddForm()}
 
 
-      <style jsx>{`
-        .product-management {
-          padding: 20px;
-          max-width: 1400px;
-          margin: 0 auto;
-        }
-
-        .current-route {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: #e8f4fd;
-          padding: 8px 12px;
-          border-radius: 6px;
-          border-left: 4px solid #3498db;
-          margin-bottom: 30px;
-          font-size: 14px;
-          color: #2c3e50;
-        }
-
-        .route-indicator {
-          font-size: 16px;
-        }
-
-        .overview-header h2 {
-          color: #2c3e50;
-          margin-bottom: 10px;
-        }
-
-        .overview-header p {
-          color: #666;
-          margin-bottom: 30px;
-        }
-
-        .action-buttons {
-          display: flex;
-          gap: 15px;
-          margin-bottom: 30px;
-          flex-wrap: wrap;
-        }
-
-        .btn {
-          padding: 12px 24px;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: 500;
-          transition: all 0.3s;
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .btn-primary {
-          background: #3498db;
-          color: white;
-        }
-
-        .btn-primary:hover {
-          background: #2980b9;
-        }
-
-        .btn-success {
-          background: #27ae60;
-          color: white;
-        }
-
-        .btn-success:hover {
-          background: #229954;
-        }
-
-        .btn-info {
-          background: #17a2b8;
-          color: white;
-        }
-
-        .btn-info:hover {
-          background: #138496;
-        }
-
-        .btn-danger {
-          background: #e74c3c;
-          color: white;
-        }
-
-        .btn-danger:hover {
-          background: #c0392b;
-        }
-
-        .btn-secondary {
-          background: #6c757d;
-          color: white;
-        }
-
-        .btn-secondary:hover {
-          background: #5a6268;
-        }
-
-        .filters {
-          display: flex;
-          gap: 20px;
-          margin-bottom: 30px;
-          flex-wrap: wrap;
-        }
-
-        .search-input, .category-select {
-          padding: 10px 15px;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          font-size: 14px;
-          min-width: 200px;
-        }
-
-        .search-input:focus, .category-select:focus {
-          outline: none;
-          border-color: #3498db;
-        }
-
-        .products-table-container {
-          background: white;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-          overflow: hidden;
-        }
-
-        .products-table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-
-        .products-table th {
-          background: #f8f9fa;
-          padding: 15px;
-          text-align: left;
-          font-weight: 600;
-          color: #2c3e50;
-          border-bottom: 2px solid #dee2e6;
-        }
-
-        .products-table td {
-          padding: 15px;
-          border-bottom: 1px solid #dee2e6;
-          vertical-align: middle;
-        }
-
-        .product-thumbnail {
-          width: 50px;
-          height: 50px;
-          object-fit: cover;
-          border-radius: 4px;
-        }
-
-        .product-name {
-          font-weight: 600;
-          color: #2c3e50;
-          margin-bottom: 5px;
-        }
-
-        .product-description {
-          font-size: 12px;
-          color: #666;
-          max-width: 200px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .status-badge {
-          padding: 4px 8px;
-          border-radius: 12px;
-          font-size: 11px;
-          font-weight: 500;
-          text-transform: uppercase;
-        }
-
-        .status-badge.active {
-          background: #d4edda;
-          color: #155724;
-        }
-
-        .status-badge.inactive {
-          background: #f8d7da;
-          color: #721c24;
-        }
-
-        .action-buttons-small {
-          display: flex;
-          gap: 5px;
-        }
-
-        .btn-small {
-          padding: 6px 10px;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 12px;
-        }
-
-        .btn-edit {
-          background: #3498db;
-          color: white;
-        }
-
-        .btn-delete {
-          background: #e74c3c;
-          color: white;
-        }
-
-        .loading-cell, .no-data-cell {
-          text-align: center;
-          padding: 40px;
-          color: #666;
-          font-style: italic;
-        }
-
-        .add-product-form {
-          background: white;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-          padding: 30px;
-        }
-
-        .form-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 30px;
-          padding-bottom: 20px;
-          border-bottom: 1px solid #dee2e6;
-        }
-
-        .form-header h2 {
-          color: #2c3e50;
-          margin: 0;
-        }
-
-        .form-grid {
-          display: grid;
-          gap: 30px;
-        }
-
-        .form-section {
-          background: #f8f9fa;
-          padding: 20px;
-          border-radius: 6px;
-          border-left: 4px solid #3498db;
-        }
-
-        .form-section h3 {
-          color: #2c3e50;
-          margin: 0 0 20px 0;
-          font-size: 18px;
-        }
-
-        .form-group {
-          margin-bottom: 20px;
-        }
-
-        .form-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-        }
-
-        .form-group label {
-          display: block;
-          margin-bottom: 8px;
-          font-weight: 500;
-          color: #2c3e50;
-        }
-
-        .checkbox-label {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          cursor: pointer;
-        }
-
-        .form-input, .form-select, .form-textarea {
-          width: 100%;
-          padding: 12px;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          font-size: 14px;
-          transition: border-color 0.3s;
-        }
-
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
-          outline: none;
-          border-color: #3498db;
-        }
-
-        .form-file {
-          width: 100%;
-          padding: 8px;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          background: white;
-        }
-
-        .form-textarea.rich-text {
-          min-height: 120px;
-          resize: vertical;
-        }
-
-        .form-actions {
-          display: flex;
-          gap: 15px;
-          justify-content: flex-end;
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #dee2e6;
-        }
-
-        .form-group small {
-          display: block;
-          margin-top: 5px;
-          color: #666;
-          font-size: 12px;
-        }
-
-
-
-
-        @media (max-width: 768px) {
-          .form-row {
-            grid-template-columns: 1fr;
-          }
-          
-          .action-buttons {
-            flex-direction: column;
-          }
-          
-          .filters {
-            flex-direction: column;
-          }
-          
-          .form-actions {
-            flex-direction: column;
-          }
-
-        }
-      `}</style>
     </div>
   );
 };

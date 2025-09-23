@@ -22,6 +22,17 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
+      // First check localStorage as fallback
+      const storedUser = localStorage.getItem('user');
+      const storedAuth = localStorage.getItem('isAuthenticated');
+      
+      if (storedUser && storedAuth === 'true') {
+        setUser(JSON.parse(storedUser));
+        setIsAuthenticated(true);
+        setLoading(false);
+        return; // Exit early if we have stored data
+      }
+
       // Add timeout to prevent hanging
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
@@ -42,18 +53,28 @@ export const AuthProvider = ({ children }) => {
         if (data.isAuthenticated) {
           setUser(data.user);
           setIsAuthenticated(true);
+          // Store in localStorage as backup
+          localStorage.setItem('user', JSON.stringify(data.user));
+          localStorage.setItem('isAuthenticated', 'true');
         } else {
           setUser(null);
           setIsAuthenticated(false);
+          localStorage.removeItem('user');
+          localStorage.removeItem('isAuthenticated');
         }
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        localStorage.removeItem('user');
+        localStorage.removeItem('isAuthenticated');
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      setUser(null);
-      setIsAuthenticated(false);
+      // Don't clear localStorage on network error, keep existing state
+      if (!localStorage.getItem('user')) {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
     } finally {
       setLoading(false);
     }
@@ -85,6 +106,9 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         setUser(data.user);
         setIsAuthenticated(true);
+        // Store in localStorage as backup
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('isAuthenticated', 'true');
         console.log('AuthContext: Login successful, user set:', data.user);
         return { success: true, data };
       } else {
@@ -118,6 +142,9 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       setIsAuthenticated(false);
+      // Clear localStorage
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
     }
   };
 

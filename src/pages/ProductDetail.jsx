@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Star, ShoppingCart, Download, Share2, Heart, CheckCircle } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import DynamicSEO from '../components/DynamicSEO';
+import { setSSRMetaTags, checkMetaTags } from '../utils/ssrMetaTags';
 import apiService from '../services/api';
 
 const ProductDetail = () => {
@@ -23,6 +25,13 @@ const ProductDetail = () => {
         const data = await apiService.getProductBySlug(slug);
         setProduct(data);
         setError(null);
+        
+        // Set meta tags immediately when product loads
+        if (data) {
+          setSSRMetaTags(data);
+          // Also check what was set
+          setTimeout(() => checkMetaTags(), 100);
+        }
       } catch (err) {
         console.error('Error fetching product:', err);
         setError('Product not found');
@@ -143,8 +152,34 @@ const ProductDetail = () => {
   const specifications = product.specifications ? 
     product.specifications.split('\n').filter(spec => spec.trim()) : [];
 
+  // Debug logging
+  console.log('ProductDetail: Product data:', product);
+  console.log('ProductDetail: Meta keywords:', product?.metaKeywords);
+
   return (
     <div style={{ minHeight: '100vh', paddingTop: '80px', backgroundColor: '#f9fafb' }}>
+      <DynamicSEO
+        title={product ? `${product.name} | Zebra Printers India` : 'Product | Zebra Printers India'}
+        description={product ? product.description : 'Professional Zebra barcode printing solutions'}
+        keywords={product ? product.metaKeywords || `${product.name}, Zebra printer, barcode printer, ${product.category}, professional printing` : 'Zebra printer, barcode printer, professional printing'}
+        structuredData={product ? {
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": product.name,
+          "description": product.description,
+          "brand": {
+            "@type": "Brand",
+            "name": "Zebra"
+          },
+          "category": product.category,
+          "offers": {
+            "@type": "Offer",
+            "price": product.price,
+            "priceCurrency": "INR",
+            "availability": "https://schema.org/InStock"
+          }
+        } : null}
+      />
       {/* Breadcrumb */}
       <div style={{
         maxWidth: '1200px',

@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Filter, Search, Star, ShoppingCart, Eye, Download } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useParams, useNavigate } from 'react-router-dom';
+import DynamicSEO from '../components/DynamicSEO';
+import DynamicContent from '../components/DynamicContent';
 
 const Products = () => {
   const { isEnglish } = useLanguage();
@@ -384,6 +386,11 @@ const Products = () => {
 
   return (
     <div style={pageStyles}>
+      <DynamicSEO 
+        title="Zebra Barcode Printers & Scanners | Professional Solutions"
+        description="Explore our comprehensive range of Zebra barcode printers, scanners, mobile computers, and label solutions for all your business needs."
+        keywords="Zebra barcode printers, barcode scanners, mobile computers, label printers, RFID solutions"
+      />
       {/* Header Section */}
       <motion.section
         style={headerSectionStyles}

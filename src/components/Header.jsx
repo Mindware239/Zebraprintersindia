@@ -4,6 +4,7 @@ import { Menu, X, Phone, Mail, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MINDWARELogo from './MINDWARELogo';
 import ProductDropdown from './ProductDropdown';
+import LocationBanner from './LocationBanner';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -203,19 +204,23 @@ const Header = () => {
   };
 
   return (
-    <motion.header
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.5 }}
-      style={headerStyles}
-    >
-      {/* Top Bar - Hidden on Mobile */}
-      <div className="top-bar" style={topBarStyles}>
-        <div style={topBarContainerStyles}>
+    <>
+      {/* Location Banner */}
+      <LocationBanner />
+      
+      <motion.header
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.5 }}
+        style={headerStyles}
+      >
+        {/* Top Bar - Hidden on Mobile */}
+        <div className="top-bar" style={topBarStyles}>
+          <div style={topBarContainerStyles}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Phone size={16} />
-              <span>+91 9717122688</span>
+              <span>+91 8527522688</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Mail size={16} />
@@ -239,7 +244,7 @@ const Header = () => {
         <div style={navContainerStyles}>
           {/* Logo */}
           <Link to="/" style={logoStyles}>
-            <MINDWARELogo size={40} showText={!isMobile} isMobile={isMobile} />
+            <MINDWARELogo size={150} showText={!isMobile} isMobile={isMobile} />
           </Link>
 
           {/* Desktop Navigation */}
@@ -414,6 +419,7 @@ const Header = () => {
         )}
       </AnimatePresence>
     </motion.header>
+    </>
   );
 };
 

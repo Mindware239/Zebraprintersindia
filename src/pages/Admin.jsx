@@ -36,6 +36,9 @@ const Admin = () => {
         <Route path="/categories" element={<AdminDashboard activeTab="categories" />} />
         <Route path="/subcategories" element={<AdminDashboard activeTab="subcategories" />} />
         <Route path="/brands" element={<AdminDashboard activeTab="brands" />} />
+        <Route path="/drivers" element={<AdminDashboard activeTab="drivers" />} />
+        <Route path="/blogs" element={<AdminDashboard activeTab="blogs" />} />
+        <Route path="/jobs" element={<AdminDashboard activeTab="jobs" />} />
         <Route path="/webpages" element={<AdminDashboard activeTab="webpages" />} />
         <Route path="/hero-settings" element={<AdminDashboard activeTab="hero-settings" />} />
         <Route path="/color-themes" element={<AdminDashboard activeTab="color-themes" />} />

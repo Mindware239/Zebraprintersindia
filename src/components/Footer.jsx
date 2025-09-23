@@ -13,7 +13,8 @@ const Footer = () => {
         { name: 'Home', path: '/' },
         { name: 'Products', path: '/products' },
         { name: 'About Us', path: '/about' },
-        { name: 'Contact', path: '/contact' }
+        { name: 'Contact', path: '/contact' },
+        { name: 'Network', path: '/network' }
       ]
     },
     {

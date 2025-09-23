@@ -3,6 +3,9 @@ import { motion } from 'framer-motion';
 import { ArrowRight, CheckCircle, Users, Award, Clock } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getTranslation } from '../translations/translations';
+import { useLocation } from '../contexts/LocationContext';
+import DynamicContent from '../components/DynamicContent';
+import DynamicSEO from '../components/DynamicSEO';
 import styled from 'styled-components';
 import hero1 from '../assets/hero1.png';
 import hero2 from '../assets/hero2.png';
@@ -305,6 +308,7 @@ const StyledCard = styled.div`
 
 const Home = () => {
   const { language } = useLanguage();
+  const { currentLocation } = useLocation();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   // Hero images array
@@ -612,6 +616,11 @@ const Home = () => {
 
   return (
     <div style={pageStyles}>
+      <DynamicSEO 
+        title="Zebra Barcode Printers India | Professional Barcode Solutions"
+        description="Leading supplier of Zebra barcode printers, scanners, and mobile computers in India. Professional barcode technology solutions for businesses."
+        keywords="Zebra barcode printers, barcode scanners, mobile computers, label printers, RFID solutions, India"
+      />
       {/* Hero Section with Home Banner Card */}
       <div className="home-banner-wrapper">
         <StyledCard>

@@ -1,7 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { LocationProvider } from './contexts/LocationContext';
 import { ModalProvider } from './components/modals/modal-context';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -14,6 +16,12 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import Jobs from './pages/Jobs';
 import Blogs from './pages/Blogs';
+import BlogDetail from './pages/BlogDetail';
+import LocationPage from './pages/LocationPage';
+import LocationDemo from './pages/LocationDemo';
+import Network from './pages/Network';
+import SEODemo from './pages/SEODemo';
+import ErrorBoundary from './components/ErrorBoundary';
 
 
 import Test from './pages/Test';
@@ -38,8 +46,13 @@ function AppContent() {
           <Route path="/drivers" element={<Drivers />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/jobs" element={<Jobs />} />
-          <Route path="/blogs" element={<Blogs />} />
+          <Route path="/jobs" element={<ErrorBoundary><Jobs /></ErrorBoundary>} />
+          <Route path="/blogs" element={<ErrorBoundary><Blogs /></ErrorBoundary>} />
+          <Route path="/blog/:slug" element={<ErrorBoundary><BlogDetail /></ErrorBoundary>} />
+          <Route path="/location/:citySlug?" element={<ErrorBoundary><LocationPage /></ErrorBoundary>} />
+          <Route path="/location-demo" element={<ErrorBoundary><LocationDemo /></ErrorBoundary>} />
+          <Route path="/network" element={<ErrorBoundary><Network /></ErrorBoundary>} />
+          <Route path="/seo-demo" element={<ErrorBoundary><SEODemo /></ErrorBoundary>} />
           <Route path="/test" element={<Test />} />
           <Route path="/admin/*" element={<Admin />} />
         </Routes>
@@ -51,15 +64,19 @@ function AppContent() {
 
 function App() {
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <ModalProvider>
-          <Router>
-            <AppContent />
-          </Router>
-        </ModalProvider>
-      </AuthProvider>
-    </LanguageProvider>
+    <HelmetProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <LocationProvider>
+            <ModalProvider>
+              <Router>
+                <AppContent />
+              </Router>
+            </ModalProvider>
+          </LocationProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </HelmetProvider>
   );
 }
 
