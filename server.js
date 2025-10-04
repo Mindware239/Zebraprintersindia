@@ -31,7 +31,13 @@ const emailTransporter = nodemailer.createTransport({
 });
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 80;
+
+// FORCE ALL requests to be handled by Express - bypass Nginx static serving
+app.use((req, res, next) => {
+    console.log(`[EXPRESS] Handling request: ${req.method} ${req.url}`);
+    next();
+});
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -149,20 +155,34 @@ const db = getConnection();
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// CRITICAL: Handle all problematic requests BEFORE static middleware
+app.get('/favicon.ico', (req, res) => {
+  console.log('[EXPRESS] Serving favicon.ico');
+  res.sendFile(path.join(__dirname, 'dist', 'favicon.ico'));
+});
+
+app.get('/robots.txt', (req, res) => {
+  console.log('[EXPRESS] Serving robots.txt');
+  res.sendFile(path.join(__dirname, 'dist', 'robots.txt'));
+});
+
+app.get('/health', (req, res) => {
+  console.log('[EXPRESS] Health check endpoint');
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Handle all API routes explicitly
+app.get('/api/*', (req, res, next) => {
+  console.log(`[EXPRESS] API request: ${req.url}`);
+  next();
+});
+
 app.use('/uploads', express.static('uploads'));
 app.use('/downloads', express.static('uploads/drivers'));
 
 // Serve static files from the React app build directory
 app.use(express.static(path.join(__dirname, 'dist')));
-
-// Explicit routes for common files that nginx might look for
-app.get('/favicon.ico', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'favicon.ico'));
-});
-
-app.get('/robots.txt', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'robots.txt'));
-});
 
 // Serve .well-known directory for ACME challenges
 app.use('/.well-known', express.static(path.join(__dirname, 'public', '.well-known')));
@@ -4961,7 +4981,7 @@ app.get('/api/schema/latest-content', (req, res) => {
 
   // Fetch latest products
   const productsQuery = `
-    SELECT id, name, slug, description, image, category, sku, model_number, created_at, updated_at
+    SELECT id, name, slug, description, image, category, price, sku, model_number, created_at, updated_at
     FROM products 
     WHERE status = 'active' 
     ORDER BY created_at DESC 
