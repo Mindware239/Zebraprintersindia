@@ -1,10 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Facebook, Twitter, Linkedin, Instagram, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch top 5 categories from database
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+          const data = await response.json();
+          // Take only top 5 categories
+          setCategories(data.slice(0, 5));
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        // Fallback to static categories if API fails
+        setCategories([
+          { name: 'printers', display_name: 'Printers' },
+          { name: 'scanners', display_name: 'Scanners' },
+          { name: 'rfid', display_name: 'RFID Solutions' },
+          { name: 'supplies', display_name: 'Supplies' },
+          { name: 'mobile-computers', display_name: 'Mobile Computers' }
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const footerSections = [
     {
@@ -19,29 +49,21 @@ const Footer = () => {
     },
     {
       title: 'Products',
-      links: [
-        { name: 'Barcode Printers', path: '/products#printers' },
-        { name: 'Barcode Scanners', path: '/products#scanners' },
-        { name: 'Mobile Computers', path: '/products#mobile' },
-        { name: 'Labels & Ribbons', path: '/products#labels' }
-      ]
+      links: isLoading ? [
+        { name: 'Loading...', path: '#' }
+      ] : categories.map(cat => ({
+        name: cat.display_name || cat.name,
+        path: `/${cat.name}`
+      }))
     },
-    {
-      title: 'Services',
-      links: [
-        { name: 'Custom Labels', path: '/services#custom-labels' },
-        { name: 'Printer Service', path: '/services#printer-service' },
-        { name: 'Technical Support', path: '/services#support' },
-        { name: 'Training', path: '/services#training' }
-      ]
-    }
+   
   ];
 
   const socialLinks = [
-    { icon: Facebook, href: '#', label: 'Facebook' },
-    { icon: Twitter, href: '#', label: 'Twitter' },
-    { icon: Linkedin, href: '#', label: 'LinkedIn' },
-    { icon: Instagram, href: '#', label: 'Instagram' }
+    { icon: Facebook, href: 'https://facebook.com/zebraprintersindia', label: 'Facebook' },
+    { icon: Twitter, href: 'https://twitter.com/zebraprintersindia', label: 'Twitter' },
+    { icon: Linkedin, href: 'https://linkedin.com/company/zebraprintersindia', label: 'LinkedIn' },
+    { icon: Instagram, href: 'https://instagram.com/zebraprintersindia', label: 'Instagram' }
   ];
 
   const footerStyles = {
@@ -252,11 +274,11 @@ const Footer = () => {
               </div>
               <div style={contactItemStyles}>
                 <Phone size={16} style={iconStyles} />
-                <span>+91 9717122688</span>
+                <span>+91 8800839490</span>
               </div>
               <div style={contactItemStyles}>
                 <Mail size={16} style={iconStyles} />
-                <span>info@zebraprintersindia.com</span>
+                <span>gm@zebraprintersindia.com</span>
               </div>
             </div>
           </motion.div>

@@ -94,7 +94,7 @@ const LocationPage = () => {
         'Maintenance & Repairs'
       ],
       contactInfo: {
-        phone: '+91 8527522688',
+        phone: '+91 8800839490',
         email: 'gm@zebraprintersindia.com',
         address: `${cityName}, ${stateName}, ${countryName}`,
         hours: 'Mon-Fri: 9:00 AM - 6:00 PM'

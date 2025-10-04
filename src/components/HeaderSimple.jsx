@@ -4,6 +4,7 @@ import { Menu, X, Phone, Mail, ChevronDown, Printer, Scan, Smartphone, Settings,
 import { useLanguage, INDIAN_LANGUAGES } from '../contexts/LanguageContext';
 import { getTranslation } from '../translations/translations';
 import ProductDropdown from './ProductDropdown';
+import ProductSearch from './ProductSearch';
 import logoImage from '../assets/logo.png';
 import './HeaderSimple.css';
 
@@ -298,73 +299,14 @@ const HeaderSimple = () => {
             minWidth: 'fit-content'
           }}>
             {/* Search Box */}
-            <div className="header-search" style={{
-              position: 'relative',
-              minWidth: '50px',
-              maxWidth: '50px',
-              width: '50px',
-              transition: 'all 0.3s ease',
-              overflow: 'hidden'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.minWidth = '280px';
-              e.currentTarget.style.maxWidth = '320px';
-              e.currentTarget.style.width = '280px';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.minWidth = '50px';
-              e.currentTarget.style.maxWidth = '50px';
-              e.currentTarget.style.width = '50px';
+            <div style={{
+              width: '280px',
+              maxWidth: '280px'
             }}>
-              <div style={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                <Search 
-                  size={20} 
-                  className="header-search-icon"
-                  style={{
-                    position: 'absolute',
-                    left: '16px',
-                    color: isSearchFocused ? '#667eea' : '#9ca3af',
-                    transition: 'all 0.3s ease',
-                    cursor: 'pointer',
-                    zIndex: 2
-                  }}
-                />
-                <input
-                  type="text"
-                  placeholder={getTranslation('search.placeholder', language)}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setIsSearchFocused(true)}
-                  onBlur={() => setIsSearchFocused(false)}
-                  style={{
-                    width: '100%',
-                    padding: '14px 20px 14px 50px',
-                    border: `2px solid ${isSearchFocused ? '#667eea' : '#e5e7eb'}`,
-                    borderRadius: '25px',
-                    fontSize: '15px',
-                    outline: 'none',
-                    transition: 'all 0.3s ease',
-                    backgroundColor: '#ffffff',
-                    boxShadow: isSearchFocused ? '0 4px 12px rgba(102, 126, 234, 0.15)' : '0 2px 4px rgba(0, 0, 0, 0.05)',
-                    opacity: 0,
-                    transform: 'translateX(-20px)'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSearchFocused) {
-                      e.target.style.borderColor = '#d1d5db';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSearchFocused) {
-                      e.target.style.borderColor = '#e5e7eb';
-                    }
-                  }}
-                />
-              </div>
+              <ProductSearch 
+                placeholder={getTranslation('search.placeholder', language)}
+                className="header-search"
+              />
             </div>
 
             {/* Language Switcher */}
@@ -628,35 +570,10 @@ const HeaderSimple = () => {
 
             {/* Mobile Search Box */}
             <div style={{ marginBottom: '24px' }}>
-              <div style={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                <Search 
-                  size={18} 
-                  style={{
-                    position: 'absolute',
-                    left: '12px',
-                    color: '#9ca3af'
-                  }}
-                />
-                <input
-                  type="text"
-                  placeholder={getTranslation('search.placeholder', language)}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 12px 12px 40px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    outline: 'none',
-                    backgroundColor: '#f9fafb'
-                  }}
-                />
-              </div>
+              <ProductSearch 
+                placeholder={getTranslation('search.placeholder', language)}
+                className="mobile-search"
+              />
             </div>
 
             {/* Mobile Language Switcher */}
@@ -831,11 +748,11 @@ const HeaderSimple = () => {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Phone size={16} />
-                  <span>+91 9717122688</span>
+                  <span>+91 8800839490</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Mail size={16} />
-                  <span>info@zebraprintersindia.com</span>
+                  <span>gm@zebraprintersindia.com</span>
                 </div>
               </div>
             </div>

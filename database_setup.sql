@@ -71,16 +71,14 @@ CREATE TABLE IF NOT EXISTS states (
     FOREIGN KEY (country_id) REFERENCES countries(id) ON DELETE CASCADE
 );
 
--- Create cities table
-CREATE TABLE IF NOT EXISTS cities (
+-- Create city table (singular as expected by application)
+CREATE TABLE IF NOT EXISTS city (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(30) NOT NULL,
-    state_id INT NOT NULL,
+    city VARCHAR(30) NOT NULL,
     state VARCHAR(30) NOT NULL,
     country VARCHAR(150) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE CASCADE
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- Insert sample countries data
@@ -122,31 +120,31 @@ INSERT INTO states (name, country_id, country) VALUES
 ('North Carolina', 2, 'United States'),
 ('Michigan', 2, 'United States');
 
--- Insert sample cities data for India
-INSERT INTO cities (name, state_id, state, country) VALUES
-('New Delhi', 1, 'Delhi', 'India'),
-('Mumbai', 2, 'Maharashtra', 'India'),
-('Pune', 2, 'Maharashtra', 'India'),
-('Bangalore', 3, 'Karnataka', 'India'),
-('Chennai', 4, 'Tamil Nadu', 'India'),
-('Ahmedabad', 5, 'Gujarat', 'India'),
-('Jaipur', 6, 'Rajasthan', 'India'),
-('Lucknow', 7, 'Uttar Pradesh', 'India'),
-('Kolkata', 8, 'West Bengal', 'India'),
-('Chandigarh', 9, 'Punjab', 'India');
+-- Insert sample city data for India
+INSERT INTO city (city, state, country) VALUES
+('New Delhi', 'Delhi', 'India'),
+('Mumbai', 'Maharashtra', 'India'),
+('Pune', 'Maharashtra', 'India'),
+('Bangalore', 'Karnataka', 'India'),
+('Chennai', 'Tamil Nadu', 'India'),
+('Ahmedabad', 'Gujarat', 'India'),
+('Jaipur', 'Rajasthan', 'India'),
+('Lucknow', 'Uttar Pradesh', 'India'),
+('Kolkata', 'West Bengal', 'India'),
+('Chandigarh', 'Punjab', 'India');
 
--- Insert sample cities data for US
-INSERT INTO cities (name, state_id, state, country) VALUES
-('Los Angeles', 11, 'California', 'United States'),
-('San Francisco', 11, 'California', 'United States'),
-('Houston', 12, 'Texas', 'United States'),
-('Dallas', 12, 'Texas', 'United States'),
-('New York City', 13, 'New York', 'United States'),
-('Miami', 14, 'Florida', 'United States'),
-('Chicago', 15, 'Illinois', 'United States'),
-('Philadelphia', 16, 'Pennsylvania', 'United States'),
-('Columbus', 17, 'Ohio', 'United States'),
-('Atlanta', 18, 'Georgia', 'United States');
+-- Insert sample city data for US
+INSERT INTO city (city, state, country) VALUES
+('Los Angeles', 'California', 'United States'),
+('San Francisco', 'California', 'United States'),
+('Houston', 'Texas', 'United States'),
+('Dallas', 'Texas', 'United States'),
+('New York City', 'New York', 'United States'),
+('Miami', 'Florida', 'United States'),
+('Chicago', 'Illinois', 'United States'),
+('Philadelphia', 'Pennsylvania', 'United States'),
+('Columbus', 'Ohio', 'United States'),
+('Atlanta', 'Georgia', 'United States');
 
 -- Create subcategories table
 CREATE TABLE IF NOT EXISTS subcategories (
@@ -289,3 +287,52 @@ INSERT INTO jobs (title, slug, company, location, job_type, experience_level, sa
 ('Senior Barcode Solutions Engineer', 'senior-barcode-solutions-engineer', 'Zebra Printers India', 'New Delhi, India', 'full-time', 'senior', '₹8,00,000 - ₹12,00,000', 'We are looking for an experienced Barcode Solutions Engineer to join our team and help design innovative barcode solutions for our clients.', 'Bachelor degree in Engineering, 5+ years experience in barcode technology, Strong problem-solving skills', 'Design and implement barcode solutions, Work with clients to understand requirements, Provide technical support', 'Health insurance, Flexible working hours, Professional development opportunities', 'careers@zebraprintersindia.com', 'active', TRUE),
 ('Technical Support Specialist', 'technical-support-specialist', 'Zebra Printers India', 'Mumbai, India', 'full-time', 'mid', '₹4,00,000 - ₹6,00,000', 'Join our technical support team to help customers with Zebra printer and scanner issues.', 'Diploma in Electronics, 2+ years experience in technical support, Good communication skills', 'Provide technical support to customers, Troubleshoot printer and scanner issues, Maintain support documentation', 'Competitive salary, Health benefits, Career growth opportunities', 'support@zebraprintersindia.com', 'active', TRUE),
 ('Sales Executive - Barcode Solutions', 'sales-executive-barcode-solutions', 'Zebra Printers India', 'Bangalore, India', 'full-time', 'entry', '₹3,00,000 - ₹5,00,000', 'We are seeking a motivated Sales Executive to promote our barcode solutions to businesses across India.', 'Bachelor degree in Business, 1+ years sales experience, Excellent communication skills', 'Identify potential clients, Present barcode solutions, Build and maintain client relationships', 'Commission structure, Travel allowances, Sales training programs', 'sales@zebraprintersindia.com', 'active', FALSE);
+
+-- Create pages table for dynamic content
+CREATE TABLE IF NOT EXISTS pages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    content TEXT,
+    meta_title VARCHAR(255),
+    meta_description TEXT,
+    meta_keywords TEXT,
+    status ENUM('active', 'inactive', 'draft') DEFAULT 'active',
+    page_type VARCHAR(50) DEFAULT 'page',
+    parent_id INT NULL,
+    sort_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_slug (slug),
+    INDEX idx_status (status),
+    INDEX idx_page_type (page_type),
+    FOREIGN KEY (parent_id) REFERENCES pages(id) ON DELETE SET NULL
+);
+
+-- Create contact_form table
+CREATE TABLE IF NOT EXISTS contact_form (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    company VARCHAR(255),
+    subject VARCHAR(255),
+    message TEXT NOT NULL,
+    form_type ENUM('general', 'sales', 'support', 'technical') DEFAULT 'general',
+    status ENUM('new', 'read', 'replied', 'closed') DEFAULT 'new',
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_status (status),
+    INDEX idx_created_at (created_at)
+);
+
+-- Insert sample pages data
+INSERT INTO pages (title, slug, content, meta_title, meta_description, meta_keywords, status, page_type) VALUES
+('Zebra ZD421 Desktop Printer', 'zebra-zd421-desktop-printer', 'The Zebra ZD421 is a high-performance desktop printer perfect for small to medium businesses...', 'Zebra ZD421 Desktop Printer - Buy Online | Zebra Printers India', 'Buy Zebra ZD421 desktop printer online. High-performance barcode printing solution for your business needs.', 'zebra zd421, desktop printer, barcode printer, thermal printer', 'active', 'product'),
+('Zebra ZT411 Industrial Printer', 'zebra-zt411-industrial-printer', 'The Zebra ZT411 is designed for heavy-duty industrial applications with superior reliability...', 'Zebra ZT411 Industrial Printer - Industrial Barcode Printing', 'Zebra ZT411 industrial printer for heavy-duty applications. Reliable barcode printing for manufacturing and logistics.', 'zebra zt411, industrial printer, heavy duty, manufacturing', 'active', 'product'),
+('Barcode Scanner Solutions', 'barcode-scanner-solutions', 'Comprehensive barcode scanner solutions for all your business needs...', 'Barcode Scanner Solutions - Professional Scanning Equipment', 'Professional barcode scanner solutions including handheld, fixed, and mobile scanners for various industries.', 'barcode scanner, scanning solutions, handheld scanner, fixed scanner', 'active', 'category'),
+('Zebra Printer Maintenance Guide', 'zebra-printer-maintenance-guide', 'Complete guide to maintaining your Zebra printer for optimal performance...', 'Zebra Printer Maintenance Guide - Keep Your Printer Running', 'Learn how to properly maintain your Zebra printer with our comprehensive maintenance guide and tips.', 'zebra printer maintenance, printer care, troubleshooting', 'active', 'guide'),
+('Contact Our Technical Support', 'contact-technical-support', 'Get in touch with our technical support team for assistance with your Zebra products...', 'Contact Technical Support - Zebra Printers India', 'Contact our expert technical support team for help with Zebra printers, scanners, and barcode solutions.', 'technical support, customer service, zebra support', 'active', 'support');

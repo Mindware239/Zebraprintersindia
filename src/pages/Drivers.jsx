@@ -2,16 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Download, Search, Filter, FileText, Monitor, Printer, Smartphone, Wrench } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getTranslation } from '../translations/translations';
+import { useSearchParams } from 'react-router-dom';
 import apiService from '../services/api';
+import DownloadForm from '../components/DownloadForm';
 
 const Drivers = () => {
   const { language } = useLanguage();
+  const [searchParams] = useSearchParams();
   const [drivers, setDrivers] = useState([]);
   const [filteredDrivers, setFilteredDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedOs, setSelectedOs] = useState('all');
+  const [showDownloadForm, setShowDownloadForm] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState(null);
 
   const categories = [
     { id: 'all', name: 'All Drivers', icon: Wrench },
@@ -32,7 +37,13 @@ const Drivers = () => {
 
   useEffect(() => {
     loadDrivers();
-  }, []);
+    
+    // Handle URL parameters
+    const categoryParam = searchParams.get('category');
+    if (categoryParam && categories.find(cat => cat.id === categoryParam)) {
+      setSelectedCategory(categoryParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     filterDrivers();
@@ -113,6 +124,29 @@ const Drivers = () => {
     }
   };
 
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const handleDownloadClick = (driver) => {
+    setSelectedDriver(driver);
+    setShowDownloadForm(true);
+  };
+
+  const handleDownloadSuccess = () => {
+    // Show success message or notification
+    alert('Download request submitted successfully! Check your email for confirmation.');
+  };
+
+  const handleCloseForm = () => {
+    setShowDownloadForm(false);
+    setSelectedDriver(null);
+  };
+
   const filterDrivers = () => {
     let filtered = drivers;
 
@@ -138,10 +172,7 @@ const Drivers = () => {
   };
 
   const handleDownload = (driver) => {
-    // In a real application, this would trigger the actual download
-    console.log('Downloading:', driver.name);
-    // For demo purposes, we'll just show an alert
-    alert(`Downloading ${driver.name} (${driver.fileSize})`);
+    handleDownloadClick(driver);
   };
 
   const getCategoryIcon = (category) => {
@@ -358,6 +389,14 @@ const Drivers = () => {
           </div>
         </div>
       </div>
+
+      {/* Download Form Modal */}
+      <DownloadForm
+        driver={selectedDriver}
+        isOpen={showDownloadForm}
+        onClose={handleCloseForm}
+        onSuccess={handleDownloadSuccess}
+      />
     </div>
   );
 };

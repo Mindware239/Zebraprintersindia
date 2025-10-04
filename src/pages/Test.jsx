@@ -9,7 +9,7 @@ const Test = () => {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8fafc',
-    fontFamily: 'Arial, sans-serif'
+    fontFamily: '"Segoe UI", "Roboto", sans-serif'
   };
 
   const titleStyles = {

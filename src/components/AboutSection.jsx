@@ -11,7 +11,7 @@ const AboutSection = () => {
   const achievements = [
     {
       icon: Award,
-      title: '25+ Years Experience',
+      title: '28+ Years Experience',
       description: 'Established in 1997, we have been serving businesses across India'
     },
     {
@@ -26,13 +26,13 @@ const AboutSection = () => {
     },
     {
       icon: Shield,
-      title: 'Quality Certified',
-      description: 'ISO certified manufacturing and quality assurance processes'
+      title: 'Quality Assurance',
+      description: 'High-quality manufacturing and quality assurance processes'
     }
   ];
 
   const services = [
-    'Manufacturers of certified Labels and Ribbons',
+    'Manufacturers of high-quality Labels and Ribbons',
     'Dealer and Distributor of all kinds of Barcode Label Printers from Zebra',
     'Dealer and Distributors of all kinds of Zebra Barcode Scanners',
     'Service Center for all Zebra Barcode Label Printers and Scanners',

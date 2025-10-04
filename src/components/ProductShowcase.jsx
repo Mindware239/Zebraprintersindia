@@ -399,28 +399,6 @@ const ProductShowcase = () => {
           )}
         </motion.div>
 
-        {/* View All Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          style={ctaStyles}
-        >
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            style={ctaButtonStyles}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#1d4ed8';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#2563eb';
-            }}
-          >
-            <span>View All Products</span>
-            <ArrowRight size={20} />
-          </motion.button>
-        </motion.div>
       </div>
     </section>
   );

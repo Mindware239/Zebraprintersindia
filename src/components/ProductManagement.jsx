@@ -11,6 +11,12 @@ const ProductManagement = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProducts, setSelectedProducts] = useState([]);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
   // Form states
   const [isEditing, setIsEditing] = useState(false);
   const [editingProductId, setEditingProductId] = useState(null);
@@ -39,12 +45,49 @@ const ProductManagement = () => {
     loadSubcategories();
   }, []);
 
-  const loadProducts = async () => {
+  // Reload products when pagination or filters change
+  useEffect(() => {
+    loadProducts(currentPage, itemsPerPage, searchTerm, selectedCategory);
+  }, [currentPage, itemsPerPage]);
+
+  // Handle search and category filter changes
+  const handleSearchChange = (value) => {
+    setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page when searching
+    loadProducts(1, itemsPerPage, value, selectedCategory);
+  };
+
+  const handleCategoryChange = (value) => {
+    setSelectedCategory(value);
+    setCurrentPage(1); // Reset to first page when filtering
+    loadProducts(1, itemsPerPage, searchTerm, value);
+  };
+
+  const loadProducts = async (page = currentPage, limit = itemsPerPage, search = searchTerm, category = selectedCategory) => {
     try {
       setLoading(true);
-      const response = await fetch('/api/products');
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString()
+      });
+      
+      if (search) {
+        params.append('search', search);
+      }
+      
+      if (category && category !== 'all') {
+        params.append('category', category);
+      }
+      
+      const response = await fetch(`/api/products/paginated?${params}`);
       const data = await response.json();
-      setProducts(data);
+      
+      setProducts(data.products || []);
+      setTotalProducts(data.total || 0);
+      setTotalPages(data.totalPages || 0);
+      setCurrentPage(data.currentPage || page);
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {
@@ -219,12 +262,29 @@ const ProductManagement = () => {
 
 
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Pagination helper functions
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
 
   const renderOverview = () => (
     <div className="product-management">
@@ -278,12 +338,12 @@ const ProductManagement = () => {
           type="text"
           placeholder="Search products..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
           className="search-input"
         />
         <select
           value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
+          onChange={(e) => handleCategoryChange(e.target.value)}
           className="category-select"
         >
           <option value="all">All Categories</option>
@@ -302,7 +362,7 @@ const ProductManagement = () => {
             <div className="loading-spinner"></div>
             <p>Loading products...</p>
           </div>
-        ) : filteredProducts.length === 0 ? (
+        ) : products.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📦</div>
             <h3>No products found</h3>
@@ -317,7 +377,7 @@ const ProductManagement = () => {
                     type="checkbox"
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedProducts(filteredProducts.map(p => p.id));
+                        setSelectedProducts(products.map(p => p.id));
                       } else {
                         setSelectedProducts([]);
                       }
@@ -334,7 +394,7 @@ const ProductManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map(product => (
+              {products.map(product => (
                 <tr key={product.id}>
                   <td className="checkbox-column">
                     <input
@@ -408,6 +468,75 @@ const ProductManagement = () => {
               ))}
             </tbody>
           </table>
+        )}
+
+        {/* Pagination Controls */}
+        {products.length > 0 && (
+          <div className="pagination-container">
+            <div className="pagination-info">
+              <span>
+                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalProducts)} of {totalProducts} products
+              </span>
+            </div>
+            
+            <div className="pagination-controls">
+              <div className="pagination-buttons">
+                <button 
+                  className="pagination-btn"
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                >
+                  ← Previous
+                </button>
+                
+                {/* Page numbers */}
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`pagination-btn ${currentPage === pageNum ? 'active' : ''}`}
+                      onClick={() => goToPage(pageNum)}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                
+                <button 
+                  className="pagination-btn"
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  Next →
+                </button>
+              </div>
+              
+              <div className="items-per-page">
+                <label>Items per page:</label>
+                <select 
+                  value={itemsPerPage} 
+                  onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value))}
+                  className="items-per-page-select"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

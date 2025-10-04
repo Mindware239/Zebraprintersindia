@@ -1,23 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Filter, Search, Star, ShoppingCart, Eye, Download } from 'lucide-react';
+import { Filter, Search, Star, Eye, Download } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation } from '../contexts/LocationContext';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import DynamicSEO from '../components/DynamicSEO';
 import DynamicContent from '../components/DynamicContent';
+import ProductSearch from '../components/ProductSearch';
+import Pagination from '../components/Pagination';
 
 const Products = () => {
   const { isEnglish } = useLanguage();
+  const { currentLocation } = useLocation();
   const { category } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('name');
-  const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedDescriptions, setExpandedDescriptions] = useState({});
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalProducts: 0,
+    hasNextPage: false,
+    hasPrevPage: false,
+    limit: 8
+  });
 
   // Function to truncate text
   const truncateText = (text, maxLength = 120) => {
@@ -34,24 +46,58 @@ const Products = () => {
     }));
   };
 
-  // Set category from URL parameter
+  // Function to generate product URL (only add location if explicitly selected)
+  const getProductUrl = (productSlug) => {
+    // Only add location if user has explicitly selected a location
+    // Check if location was manually set by user (not auto-detected)
+    const isLocationManuallySet = localStorage.getItem('locationManuallySet') === 'true';
+    
+    if (isLocationManuallySet && currentLocation?.city?.name && currentLocation?.country?.name) {
+      const citySlug = currentLocation.city.name.toLowerCase().replace(/\s+/g, '-');
+      const countrySlug = currentLocation.country.name.toLowerCase().replace(/\s+/g, '-');
+      return `/${productSlug}/in-${citySlug}-${countrySlug}`;
+    }
+    return `/${productSlug}`;
+  };
+
+  // Set category from URL parameter or query parameter
   useEffect(() => {
     if (category) {
       setSelectedCategory(category);
+    } else {
+      // Check for category in query parameters
+      const categoryParam = searchParams.get('category');
+      if (categoryParam) {
+        setSelectedCategory(categoryParam);
+      }
     }
-  }, [category]);
+  }, [category, searchParams]);
 
-  // Fetch products from API
+  // Fetch products from API with pagination
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch('/api/products');
+        setIsLoading(true);
+        const response = await fetch(`/api/products/paginated?page=${pagination.currentPage}&limit=${pagination.limit}`);
         if (response.ok) {
           const data = await response.json();
-          setProducts(data);
+          console.log('Products API Response:', data);
+          setProducts(data.products || []);
+          setPagination(data.pagination || {
+            currentPage: 1,
+            totalPages: 1,
+            totalProducts: 0,
+            hasNextPage: false,
+            hasPrevPage: false,
+            limit: 8
+          });
+        } else {
+          console.error('Products API Error:', response.status, response.statusText);
         }
       } catch (error) {
         console.error('Error fetching products:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -69,35 +115,46 @@ const Products = () => {
 
     fetchProducts();
     fetchCategories();
-    setIsLoading(false);
-  }, []);
+  }, [pagination.currentPage, pagination.limit]);
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (product.shortDescription && product.shortDescription.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    let matchesCategory = false;
-    if (selectedCategory === 'all') {
-      matchesCategory = true;
-    } else {
-      // Check if it matches the category (case insensitive)
-      const productCategory = product.category?.toLowerCase();
-      const selectedCategoryLower = selectedCategory.toLowerCase();
-      
-      // Check category match
-      if (productCategory === selectedCategoryLower) {
-        matchesCategory = true;
+  // Fetch products when category changes (reset to page 1)
+  useEffect(() => {
+    const fetchProductsByCategory = async () => {
+      try {
+        setIsLoading(true);
+        setPagination(prev => ({ ...prev, currentPage: 1 }));
+        
+        // Always use the general paginated endpoint for now
+        const response = await fetch(`/api/products/paginated?page=1&limit=${pagination.limit}`);
+        if (response.ok) {
+          const data = await response.json();
+          setProducts(data.products || []);
+          setPagination(data.pagination || pagination);
+        }
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      // Check subcategory match (for dropdown navigation)
-      if (product.subcategory_name === selectedCategory) {
-        matchesCategory = true;
-      }
-    }
-    
-    
-    return matchesSearch && matchesCategory;
-  });
+    };
+
+    // Always fetch products when category changes, including "all"
+    fetchProductsByCategory();
+  }, [selectedCategory]);
+
+  // Handle pagination
+  const handlePageChange = (page) => {
+    setPagination(prev => ({ ...prev, currentPage: page }));
+  };
+
+  // Handle category change
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category);
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
+  // For server-side pagination, we'll use products directly
+  const filteredProducts = products;
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (sortBy) {
@@ -113,14 +170,14 @@ const Products = () => {
   });
 
   const pageStyles = {
-    minHeight: '100vh',
-    paddingTop: '80px'
+    minHeight: '100vh'
   };
 
   const headerSectionStyles = {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%)',
-    color: '#ffffff',
-    padding: '64px 0'
+    background: '#ffffff',
+    color: '#1f2937',
+    padding: '48px 0',
+    borderBottom: '1px solid #e5e7eb'
   };
 
   const headerContainerStyles = {
@@ -414,16 +471,10 @@ const Products = () => {
       {/* Filters Section */}
       <section style={filtersSectionStyles}>
         <div style={filtersContainerStyles}>
-          <div style={searchContainerStyles}>
-            <Search style={searchIconStyles} />
-            <input
-              type="text"
-              placeholder={isEnglish ? 'Search by name or description...' : 'नाम या विवरण से खोजें...'}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={searchInputStyles}
-            />
-          </div>
+          <ProductSearch 
+            placeholder={isEnglish ? 'Search by name or description...' : 'नाम या विवरण से खोजें...'}
+            className="products-page-search"
+          />
           
           <div style={filtersRowStyles}>
             <div>
@@ -432,7 +483,7 @@ const Products = () => {
               </label>
               <select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 style={selectStyles}
               >
                 <option value="all">
@@ -479,6 +530,9 @@ const Products = () => {
                   : 'अपनी खोज या फिल्टर मानदंड को समायोजित करने का प्रयास करें'
                 }
               </p>
+              <div style={{ fontSize: '14px', color: '#9ca3af', marginTop: '8px' }}>
+                Debug: Products: {products.length}, Filtered: {filteredProducts.length}, Sorted: {sortedProducts.length}
+              </div>
             </div>
           ) : (
             <motion.div
@@ -586,18 +640,26 @@ const Products = () => {
                   <div style={productActionsStyles}>
                     <button 
                       style={primaryButtonStyles}
-                      onClick={() => navigate(`/product/${product.slug}`)}
+                      onClick={() => navigate(`/${product.slug || product.id}`)}
                     >
                       <Eye style={{ width: '16px', height: '16px' }} />
                       {isEnglish ? 'View' : 'देखें'}
-                    </button>
-                    <button style={secondaryButtonStyles}>
-                      <ShoppingCart style={{ width: '16px', height: '16px' }} />
                     </button>
                   </div>
                 </motion.div>
               ))}
             </motion.div>
+          )}
+
+          {/* Pagination */}
+          {!isLoading && products.length > 0 && (
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+              hasNextPage={pagination.hasNextPage}
+              hasPrevPage={pagination.hasPrevPage}
+            />
           )}
         </div>
       </section>

@@ -19,7 +19,7 @@ export default function WhatsAppFloatingButton() {
   const handleWhatsAppClick = () => {
     const message = "Hi, I need help with barcode solutions";
     const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/919810822688?text=${encodedMessage}`, '_blank');
+    window.open(`https://wa.me/918800839490?text=${encodedMessage}`, '_blank');
   };
 
   if (!isVisible) return null;

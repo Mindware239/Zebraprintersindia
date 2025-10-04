@@ -6,12 +6,12 @@ import './ProductDropdown.css';
 
 const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
   const [dropdownData, setDropdownData] = useState({});
-  const [hoveredCategory, setHoveredCategory] = useState(null);
+  const [hoveredCategory, setHoveredCategory] = useState('scanners'); // Default to scanners
   const [isLoading, setIsLoading] = useState(true);
+  const [dataCache, setDataCache] = useState(null);
   const dropdownRef = useRef(null);
 
-  // Debug logging
-  console.log('ProductDropdown rendered, isOpen:', isOpen);
+  // ProductDropdown component
 
   // Category icons mapping
   const categoryIcons = {
@@ -25,14 +25,34 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
   };
 
 
-  // Fetch dropdown data from API
+  // Fetch dropdown data from API with caching
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        console.log('Fetching dropdown data from API...');
+        // Check cache first (5 minute cache)
+        const now = Date.now();
+        if (dataCache && (now - dataCache.timestamp) < 300000) {
+          setDropdownData(dataCache.data);
+          setIsLoading(false);
+          return;
+        }
+
         const data = await apiService.getDropdownData();
-        console.log('Dropdown data received:', data);
+        
+        // Cache the data
+        setDataCache({
+          data,
+          timestamp: now
+        });
+        
         setDropdownData(data);
+        
+        // Set the first category as default hovered category if current one doesn't exist
+        const firstCategory = Object.keys(data)[0];
+        if (firstCategory && (!hoveredCategory || !data[hoveredCategory])) {
+          setHoveredCategory(firstCategory);
+        }
+        
         setIsLoading(false);
       } catch (error) {
         console.error('Error fetching dropdown data:', error);
@@ -45,7 +65,7 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
     if (isOpen) {
       fetchDropdownData();
     }
-  }, [isOpen]);
+  }, [isOpen, dataCache, hoveredCategory]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -65,13 +85,8 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
   }, [isOpen, onClose]);
 
   if (!isOpen) {
-    console.log('ProductDropdown not open, returning null');
     return null;
   }
-
-  console.log('ProductDropdown is open, rendering dropdown');
-  console.log('Dropdown data:', dropdownData);
-  console.log('Is loading:', isLoading);
 
   return (
     <div 
@@ -87,8 +102,15 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
       <div className="dropdown-container">
         {/* Header */}
         <div className="dropdown-header">
-          <h2>Product Categories</h2>
-          <p>Explore our comprehensive range of barcode and RFID solutions</p>
+          <div className="header-content">
+            <div className="header-text">
+              <h2>Product Categories</h2>
+              <p>Explore our comprehensive range of barcode and RFID solutions</p>
+            </div>
+            <Link to="/products" className="view-all-link" onClick={onClose}>
+              View All Products
+            </Link>
+          </div>
         </div>
 
         <div className="dropdown-content">
@@ -108,10 +130,12 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
                 Object.entries(dropdownData).map(([categoryKey, category]) => {
                   const IconComponent = categoryIcons[categoryKey] || Settings;
                   return (
-                    <div
+                    <Link
                       key={categoryKey}
+                      to={`/products/${categoryKey}`}
                       className={`category-item ${hoveredCategory === categoryKey ? 'active' : ''}`}
                       onMouseEnter={() => setHoveredCategory(categoryKey)}
+                      onClick={onClose}
                     >
                       <div className="category-icon">
                         <IconComponent size={20} />
@@ -121,7 +145,7 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
                         <p>{category.description}</p>
                       </div>
                       <ChevronRight size={16} className="category-arrow" />
-                    </div>
+                    </Link>
                   );
                 })
               )}
@@ -142,7 +166,7 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
                     dropdownData[hoveredCategory].subcategories.map((subcategory) => (
                     <Link
                       key={subcategory.id}
-                      to={`/products/${subcategory.name}`}
+                      to={`/products/${hoveredCategory}/${subcategory.name}`}
                       className="subcategory-item"
                       onClick={onClose}
                     >
@@ -173,7 +197,7 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
         </div>
 
         {/* Featured Products Section */}
-        <div className="featured-section">
+        {/* <div className="featured-section">
           <div className="featured-header">
             <h3>Featured Products</h3>
             <Link to="/products" className="view-all-link">View All Products</Link>
@@ -204,7 +228,7 @@ const ProductDropdown = ({ isOpen, onClose, onMouseEnter, onMouseLeave }) => {
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

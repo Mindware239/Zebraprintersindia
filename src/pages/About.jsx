@@ -168,7 +168,8 @@ const About = () => {
   
   const pageStyles = {
     minHeight: '100vh',
-    paddingTop: '80px'
+    paddingTop: '80px',
+    fontFamily: '"Segoe UI", "Roboto", sans-serif'
   };
 
   const heroSectionStyles = {
@@ -188,11 +189,13 @@ const About = () => {
 
   const titleStyles = {
     fontSize: 'clamp(2.5rem, 5vw, 4rem)',
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginBottom: '24px',
     textShadow: '3px 3px 6px rgba(0,0,0,0.7)',
     color: '#ffffff',
-    lineHeight: 1.2
+    lineHeight: 1.2,
+    fontFamily: '"Segoe UI", "Roboto", sans-serif',
+    letterSpacing: '-0.02em'
   };
 
   const descriptionStyles = {
@@ -202,7 +205,9 @@ const About = () => {
     lineHeight: 1.6,
     textShadow: '2px 2px 4px rgba(0,0,0,0.7)',
     color: '#ffffff',
-    fontWeight: '500'
+    fontWeight: '400',
+    fontFamily: '"Segoe UI", "Roboto", sans-serif',
+    letterSpacing: '0.01em'
   };
 
   const sectionStyles = {
@@ -212,64 +217,92 @@ const About = () => {
 
   const sectionTitleStyles = {
     fontSize: 'clamp(2rem, 4vw, 3rem)',
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#1f2937',
     marginBottom: '16px',
-    textAlign: 'center'
+    textAlign: 'center',
+    fontFamily: '"Segoe UI", "Roboto", sans-serif',
+    letterSpacing: '-0.02em'
   };
 
   const sectionDescriptionStyles = {
-    fontSize: '20px',
+    fontSize: '18px',
     color: '#6b7280',
     maxWidth: '768px',
     margin: '0 auto 64px',
-    textAlign: 'center'
+    textAlign: 'center',
+    fontFamily: '"Segoe UI", "Roboto", sans-serif',
+    fontWeight: '400',
+    lineHeight: 1.7,
+    letterSpacing: '0.01em'
   };
 
   const gridStyles = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '32px',
-    marginTop: '64px'
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '16px',
+    marginTop: '64px',
+    '@media (max-width: 1024px)': {
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '20px'
+    },
+    '@media (max-width: 768px)': {
+      gridTemplateColumns: '1fr',
+      gap: '24px'
+    }
   };
 
   const cardStyles = {
     backgroundColor: '#ffffff',
-    borderRadius: '12px',
-    padding: '32px',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+    borderRadius: '16px',
+    padding: '28px',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
     textAlign: 'center',
-    transition: 'box-shadow 0.3s ease'
+    transition: 'all 0.3s ease',
+    minHeight: '220px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    border: '1px solid rgba(0, 0, 0, 0.05)',
+    position: 'relative',
+    overflow: 'hidden'
   };
 
   const iconStyles = {
-    width: '64px',
-    height: '64px',
-    background: 'linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%)',
-    borderRadius: '50%',
+    width: '56px',
+    height: '56px',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    borderRadius: '16px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    margin: '0 auto 16px'
+    margin: '0 auto 16px',
+    boxShadow: '0 8px 25px rgba(102, 126, 234, 0.25)'
   };
 
   const cardTitleStyles = {
-    fontSize: '20px',
+    fontSize: '18px',
     fontWeight: '600',
     color: '#1f2937',
-    marginBottom: '8px'
+    marginBottom: '8px',
+    fontFamily: '"Segoe UI", "Roboto", sans-serif',
+    letterSpacing: '-0.01em'
   };
 
   const cardDescriptionStyles = {
     color: '#6b7280',
-    lineHeight: 1.6
+    lineHeight: 1.6,
+    fontSize: '15px',
+    fontFamily: '"Segoe UI", "Roboto", sans-serif',
+    fontWeight: '400',
+    letterSpacing: '0.01em'
   };
 
   // Timeline data
   const timelineData = [
-    { year: '1997', title: { en: 'Company Established', hi: 'कंपनी की स्थापना' }, description: { en: 'Founded in New Delhi as Mindware Technologies', hi: 'नई दिल्ली में माइंडवेयर टेक्नोलॉजीज के रूप में स्थापित' } },
+    { year: '1997', title: { en: 'Company Established', hi: 'कंपनी की स्थापना' }, description: { en: 'Founded in New Delhi as Mindware', hi: 'नई दिल्ली में माइंडवेयर के रूप में स्थापित' } },
     { year: '2000', title: { en: 'First 1000+ Clients', hi: 'पहले 1000+ ग्राहक' }, description: { en: 'Reached milestone of serving 1000+ businesses', hi: '1000+ व्यवसायों की सेवा का मील का पत्थर हासिल किया' } },
-    { year: '2005', title: { en: 'Authorized Zebra Partner', hi: 'अधिकृत जेब्रा पार्टनर' }, description: { en: 'Became authorized Zebra Printers service partner', hi: 'अधिकृत जेब्रा प्रिंटर्स सेवा भागीदार बने' } },
+    { year: '2005', title: { en: ' Zebra Partner', hi: ' जेब्रा पार्टनर' }, description: { en: 'Zebra Printers service partner', hi: ' प्रिंटर्स सेवा भागीदार बने' } },
     { year: '2010', title: { en: 'PAN India Expansion', hi: 'पैन इंडिया विस्तार' }, description: { en: 'Expanded services across all major Indian cities', hi: 'सभी प्रमुख भारतीय शहरों में सेवाओं का विस्तार' } },
     { year: '2018', title: { en: 'Manufacturing Facility', hi: 'विनिर्माण सुविधा' }, description: { en: 'Established modern manufacturing facility in Delhi', hi: 'दिल्ली में आधुनिक विनिर्माण सुविधा स्थापित' } },
     { year: '2024', title: { en: 'Leading Manufacturer', hi: 'अग्रणी निर्माता' }, description: { en: 'Leading manufacturer of labels, ribbons & RFID solutions', hi: 'लेबल, रिबन और आरएफआईडी समाधान का अग्रणी निर्माता' } }
@@ -278,14 +311,9 @@ const About = () => {
   // Achievements data
   const achievements = [
     {
-      icon: Award,
-      title: { en: 'ISO 9001:2015 Certified', hi: 'ISO 9001:2015 प्रमाणित' },
-      description: { en: 'Quality management system certification', hi: 'गुणवत्ता प्रबंधन प्रणाली प्रमाणन' }
-    },
-    {
       icon: Trophy,
-      title: { en: 'Authorized Zebra Partner', hi: 'अधिकृत जेब्रा पार्टनर' },
-      description: { en: 'Official Zebra Printers service partner', hi: 'आधिकारिक जेब्रा प्रिंटर्स सेवा भागीदार' }
+      title: { en: 'Zebra Service Partner', hi: 'जेब्रा सेवा भागीदार' },
+      description: { en: 'Zebra Printers service partner', hi: 'जेब्रा प्रिंटर्स सेवा भागीदार' }
     },
     {
       icon: Users,
@@ -294,8 +322,13 @@ const About = () => {
     },
     {
       icon: FileText,
-      title: { en: 'Certified Engineers', hi: 'प्रमाणित इंजीनियर' },
-      description: { en: 'Team of certified technicians & engineers', hi: 'प्रमाणित तकनीशियन और इंजीनियरों की टीम' }
+      title: { en: 'Expert Engineers', hi: 'विशेषज्ञ इंजीनियर' },
+      description: { en: 'Team of experienced technicians & engineers', hi: 'अनुभवी तकनीशियन और इंजीनियरों की टीम' }
+    },
+    {
+      icon: Factory,
+      title: { en: 'Leading Manufacturer', hi: 'अग्रणी निर्माता' },
+      description: { en: 'Leading manufacturer of labels, ribbons & RFID solutions', hi: 'लेबल, रिबन और आरएफआईडी समाधान का अग्रणी निर्माता' }
     }
   ];
 
@@ -310,7 +343,7 @@ const About = () => {
   // Differentiators
   const differentiators = [
     { icon: Zap, title: { en: 'Best Price Guarantee', hi: 'सर्वोत्तम मूल्य गारंटी' } },
-    { icon: Shield, title: { en: 'Authorized Service Support', hi: 'अधिकृत सेवा सहायता' } },
+    { icon: Shield, title: { en: 'Service Support', hi: 'सेवा सहायता' } },
     { icon: Headphones, title: { en: '24x7 Customer Assistance', hi: '24x7 ग्राहक सहायता' } },
     { icon: Factory, title: { en: 'Custom Manufacturing', hi: 'कस्टम निर्माण' } }
   ];
@@ -376,15 +409,98 @@ const About = () => {
             transition={{ duration: 0.6 }}
           >
             <h2 style={sectionTitleStyles}>
-              {isEnglish ? 'Our Story' : 'हमारी कहानी'}
+              {isEnglish ? 'About Us: Mindware—India\'s Undisputed Leader in Identification and Printing Technology' : 'हमारे बारे में: माइंडवेयर—भारत में पहचान और प्रिंटिंग तकनीक का निर्विवाद नेता'}
             </h2>
             <p style={sectionDescriptionStyles}>
               {isEnglish 
-                ? 'Founded in 1997, Zebra Printers India (by Mindware) is a leading provider of barcode printers, labels, ribbons, and complete print solutions across India. With 27+ years of industry experience, we serve retail, healthcare, logistics, and manufacturing sectors with unmatched expertise.'
-                : '1997 में स्थापित, जेब्रा प्रिंटर्स इंडिया (माइंडवेयर द्वारा) भारत भर में बारकोड प्रिंटर, लेबल, रिबन और पूर्ण प्रिंट समाधान का अग्रणी प्रदाता है। 27+ वर्षों के उद्योग अनुभव के साथ, हम खुदरा, स्वास्थ्य सेवा, रसद और विनिर्माण क्षेत्रों की बेजोड़ विशेषज्ञता के साथ सेवा करते हैं।'
+                ? 'Since 1997, Mindware has been the powerhouse of the Automatic Identification (Auto-ID) and Point-of-Sale (POS) industry in India. We are more than just a supplier; we are a dedicated partner committed to revolutionizing how businesses track, identify, and transact. We are proudly recognized as India\'s pride in the market for superior Labels, Tags, Wristbands, and PVC Cards, and our expertise continues to set the benchmark in Thermal Printers and consumables. Our core mission is to empower businesses with the precision and reliability required for seamless operations.'
+                : '1997 से, माइंडवेयर भारत में ऑटोमैटिक आइडेंटिफिकेशन (ऑटो-आईडी) और पॉइंट-ऑफ-सेल (पीओएस) उद्योग का पावरहाउस रहा है। हम केवल एक आपूर्तिकर्ता नहीं हैं; हम एक समर्पित साझेदार हैं जो इस बात के लिए प्रतिबद्ध हैं कि व्यवसाय कैसे ट्रैक करते हैं, पहचानते हैं और लेनदेन करते हैं।'
               }
             </p>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Mindware: The Consumable Advantage */}
+      <section style={{...sectionStyles, backgroundColor: '#f8fafc'}}>
+        <div style={containerStyles}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 style={sectionTitleStyles}>
+              {isEnglish ? 'Mindware: The Consumable Advantage' : 'माइंडवेयर: कंज्यूमेबल एडवांटेज'}
+            </h2>
+            <p style={sectionDescriptionStyles}>
+              {isEnglish 
+                ? 'At Mindware, we understand that hardware is only as good as the consumables it uses. Our commitment to world-class quality is why we confidently state: Without Mindware, no one can imagine the quality needed for critical consumables.'
+                : 'माइंडवेयर में, हम समझते हैं कि हार्डवेयर उतना ही अच्छा है जितना कि वह कंज्यूमेबल्स का उपयोग करता है।'
+              }
+            </p>
+          </motion.div>
+
+          <div style={gridStyles}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={cardStyles}
+            >
+              <div style={iconStyles}>
+                <Factory size={32} color="#ffffff" />
+              </div>
+              <h3 style={cardTitleStyles}>
+                {isEnglish ? 'Barcode Labels & Thermal Ribbons' : 'बारकोड लेबल और थर्मल रिबन'}
+              </h3>
+              <p style={cardDescriptionStyles}>
+                {isEnglish 
+                  ? 'We are pioneers in premium Barcode Labels and high-standard Thermal Ribbons, guaranteeing optimal print quality and durability for every application.'
+                  : 'हम प्रीमियम बारकोड लेबल और उच्च-मानक थर्मल रिबन में अग्रणी हैं।'
+                }
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={cardStyles}
+            >
+              <div style={iconStyles}>
+                <Trophy size={32} color="#ffffff" />
+              </div>
+              <h3 style={cardTitleStyles}>
+                {isEnglish ? 'Quality for Industry Giants' : 'उद्योग दिग्गजों के लिए गुणवत्ता'}
+              </h3>
+              <p style={cardDescriptionStyles}>
+                {isEnglish 
+                  ? 'No one can imagine truly reliable labels for Zebra Printers or efficient scanning with Zebra Scanners without the precision and quality assurance of Mindware\'s consumables.'
+                  : 'माइंडवेयर के कंज्यूमेबल्स की सटीकता और गुणवत्ता आश्वासन के बिना जेब्रा प्रिंटर के लिए वास्तव में भरोसेमंद लेबल की कल्पना नहीं की जा सकती।'
+                }
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={cardStyles}
+            >
+              <div style={iconStyles}>
+                <Zap size={32} color="#ffffff" />
+              </div>
+              <h3 style={cardTitleStyles}>
+                {isEnglish ? 'RFID Excellence' : 'आरएफआईडी उत्कृष्टता'}
+              </h3>
+              <p style={cardDescriptionStyles}>
+                {isEnglish 
+                  ? 'We lead in advanced tracking with RFID Inlay Manufacturing, superior RFID Labels, and comprehensive RFID Solutions.'
+                  : 'हम आरएफआईडी इनले निर्माण, श्रेष्ठ आरएफआईडी लेबल और व्यापक आरएफआईडी समाधान के साथ उन्नत ट्रैकिंग में अग्रणी हैं।'
+                }
+              </p>
+            </motion.div>
+          </div>
         </div>
       </section>
 
@@ -443,7 +559,7 @@ const About = () => {
                       gap: '16px',
                       marginBottom: '16px'
                     }}>
-                      <Calendar size={24} color="#667eea" />
+                      <Calendar size={24} color="#ffffff" />
                       <span style={{
                         fontSize: '24px',
                         fontWeight: 'bold',
@@ -476,7 +592,7 @@ const About = () => {
         </div>
       </section>
 
-      {/* Achievements & Certifications */}
+      {/* Our Achievements */}
       <section style={sectionStyles}>
         <div style={containerStyles}>
           <motion.div
@@ -485,7 +601,7 @@ const About = () => {
             transition={{ duration: 0.6 }}
           >
             <h2 style={sectionTitleStyles}>
-              {isEnglish ? 'Achievements & Certifications' : 'उपलब्धियां और प्रमाणपत्र'}
+              {isEnglish ? 'Our Achievements' : 'हमारी उपलब्धियां'}
             </h2>
             <p style={sectionDescriptionStyles}>
               {isEnglish 
@@ -504,14 +620,16 @@ const About = () => {
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 style={cardStyles}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
+                  e.currentTarget.style.transform = 'translateY(-8px)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
+                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
                 <div style={iconStyles}>
-                  <achievement.icon size={32} color="#667eea" />
+                  <achievement.icon size={28} color="#ffffff" />
                 </div>
                 <h3 style={cardTitleStyles}>
                   {isEnglish ? achievement.title.en : achievement.title.hi}
@@ -525,8 +643,154 @@ const About = () => {
         </div>
       </section>
 
-      {/* Vision & Mission */}
+      {/* Industrial Printing Solutions & Service */}
+      <section style={sectionStyles}>
+        <div style={containerStyles}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 style={sectionTitleStyles}>
+              {isEnglish ? 'Industrial Printing Solutions & Service' : 'औद्योगिक प्रिंटिंग समाधान और सेवा'}
+            </h2>
+            <p style={sectionDescriptionStyles}>
+              {isEnglish 
+                ? 'We are the ultimate destination for your entire printing ecosystem, from the core hardware to expert maintenance and specialized parts.'
+                : 'हम आपके पूरे प्रिंटिंग इकोसिस्टम के लिए अंतिम गंतव्य हैं, मूल हार्डवेयर से लेकर विशेषज्ञ रखरखाव और विशेष भागों तक।'
+              }
+            </p>
+          </motion.div>
+
+          <div style={gridStyles}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={cardStyles}
+            >
+              <div style={iconStyles}>
+                <Building size={32} color="#ffffff" />
+              </div>
+              <h3 style={cardTitleStyles}>
+                {isEnglish ? 'End-to-End Printer Expertise' : 'एंड-टू-एंड प्रिंटर विशेषज्ञता'}
+              </h3>
+              <p style={cardDescriptionStyles}>
+                {isEnglish 
+                  ? 'While our consumables define the market standard for all brands, our hardware portfolio ensures you always have access to the right equipment. We proudly sell and service printers from leading global manufacturers, including TSC, Godex, Citizen, and Toshiba.'
+                  : 'जबकि हमारे कंज्यूमेबल्स सभी ब्रांडों के लिए बाजार मानक को परिभाषित करते हैं।'
+                }
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={cardStyles}
+            >
+              <div style={iconStyles}>
+                <Shield size={32} color="#ffffff" />
+              </div>
+              <h3 style={cardTitleStyles}>
+                {isEnglish ? 'Focused on Service and Spares' : 'सेवा और स्पेयर पर केंद्रित'}
+              </h3>
+              <p style={cardDescriptionStyles}>
+                {isEnglish 
+                  ? 'We maintain a sharp focus on minimizing your operational downtime with Printer Heads & Spares specialization and genuine high-quality inventory for all major thermal printer brands.'
+                  : 'हम सभी प्रमुख थर्मल प्रिंटर ब्रांडों के लिए प्रिंटर हेड्स और स्पेयर विशेषज्ञता के साथ आपके परिचालन डाउनटाइम को कम करने पर तेज फोकस रखते हैं।'
+                }
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={cardStyles}
+            >
+              <div style={iconStyles}>
+                <Trophy size={32} color="#ffffff" />
+              </div>
+              <h3 style={cardTitleStyles}>
+                {isEnglish ? 'Zebra Service Center' : 'जेब्रा सेवा केंद्र'}
+              </h3>
+              <p style={cardDescriptionStyles}>
+                {isEnglish 
+                  ? 'We operate a specialized Service Center providing expert, authorized maintenance and technical support for Zebra Printers, ensuring your equipment runs flawlessly year after year.'
+                  : 'हम एक विशेष सेवा केंद्र संचालित करते हैं जो जेब्रा प्रिंटर के लिए विशेषज्ञ, अधिकृत रखरखाव और तकनीकी समर्थन प्रदान करता है।'
+                }
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Identification and Tracking Solutions */}
       <section style={{...sectionStyles, backgroundColor: '#f8fafc'}}>
+        <div style={containerStyles}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 style={sectionTitleStyles}>
+              {isEnglish ? 'Identification and Tracking Solutions' : 'पहचान और ट्रैकिंग समाधान'}
+            </h2>
+            <p style={sectionDescriptionStyles}>
+              {isEnglish 
+                ? 'Beyond barcode printing, Mindware excels in niche identification and tracking technologies that ensure accuracy and security across various sectors.'
+                : 'बारकोड प्रिंटिंग से परे, माइंडवेयर विभिन्न क्षेत्रों में सटीकता और सुरक्षा सुनिश्चित करने वाली आला पहचान और ट्रैकिंग तकनीकों में उत्कृष्टता प्राप्त करता है।'
+              }
+            </p>
+          </motion.div>
+
+          <div style={gridStyles}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={cardStyles}
+            >
+              <div style={iconStyles}>
+                <Users size={32} color="#ffffff" />
+              </div>
+              <h3 style={cardTitleStyles}>
+                {isEnglish ? 'Specialized Wristbands' : 'विशेष कलाईबंद'}
+              </h3>
+              <p style={cardDescriptionStyles}>
+                {isEnglish 
+                  ? 'We provide critical identification solutions, including robust Wristbands for Sports, highly secure RFID Wristbands, and dedicated Wristbands for Patient Tracking in healthcare settings.'
+                  : 'हम महत्वपूर्ण पहचान समाधान प्रदान करते हैं, जिसमें खेल के लिए मजबूत कलाईबंद, अत्यधिक सुरक्षित आरएफआईडी कलाईबंद और स्वास्थ्य सेवा सेटिंग्स में रोगी ट्रैकिंग के लिए समर्पित कलाईबंद शामिल हैं।'
+                }
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={cardStyles}
+            >
+              <div style={iconStyles}>
+                <FileText size={32} color="#ffffff" />
+              </div>
+              <h3 style={cardTitleStyles}>
+                {isEnglish ? 'PVC Cards' : 'पीवीसी कार्ड'}
+              </h3>
+              <p style={cardDescriptionStyles}>
+                {isEnglish 
+                  ? 'We are a leading supplier of high-quality PVC Cards and related consumables for card printers.'
+                  : 'हम कार्ड प्रिंटर के लिए उच्च गुणवत्ता वाले पीवीसी कार्ड और संबंधित कंज्यूमेबल्स के अग्रणी आपूर्तिकर्ता हैं।'
+                }
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Vision & Mission */}
+      <section style={sectionStyles}>
         <div style={containerStyles}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -546,7 +810,7 @@ const About = () => {
               style={cardStyles}
             >
               <div style={iconStyles}>
-                <Target size={32} color="#667eea" />
+                <Target size={32} color="#ffffff" />
               </div>
               <h3 style={cardTitleStyles}>
                 {isEnglish ? 'Our Vision' : 'हमारी दृष्टि'}
@@ -566,7 +830,7 @@ const About = () => {
               style={cardStyles}
             >
               <div style={iconStyles}>
-                <Heart size={32} color="#667eea" />
+                <Heart size={32} color="#ffffff" />
               </div>
               <h3 style={cardTitleStyles}>
                 {isEnglish ? 'Our Mission' : 'हमारा मिशन'}
@@ -618,7 +882,7 @@ const About = () => {
                   ...iconStyles,
                   background: 'rgba(255, 255, 255, 0.2)'
                 }}>
-                  <stat.icon size={32} color="#ffffff" />
+                  <stat.icon size={30} color="#ffffff" />
                 </div>
                 <div style={{
                   fontSize: '48px',
@@ -676,7 +940,7 @@ const About = () => {
                 }}
               >
                 <div style={iconStyles}>
-                  <item.icon size={32} color="#667eea" />
+                  <item.icon size={32} color="#ffffff" />
                 </div>
                 <h3 style={cardTitleStyles}>
                   {isEnglish ? item.title.en : item.title.hi}
@@ -687,11 +951,167 @@ const About = () => {
         </div>
       </section>
 
+      {/* Our Commitment & Guarantee */}
+      <section style={sectionStyles}>
+        <div style={containerStyles}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 style={sectionTitleStyles}>
+              {isEnglish ? 'Our Commitment & Guarantee' : 'हमारी प्रतिबद्धता और गारंटी'}
+            </h2>
+            <p style={sectionDescriptionStyles}>
+              {isEnglish 
+                ? 'As your one-stop solution provider since 1997, Mindware relentlessly works across various industry verticals, offering solutions tailored to distinct business needs. We serve and empower industries including: Retail, Hospitality, Logistics, Healthcare, Security, Salon & Spa, and Gas Stations.'
+                : '1997 से आपके वन-स्टॉप समाधान प्रदाता के रूप में, माइंडवेयर विभिन्न उद्योग क्षेत्रों में अथक रूप से काम करता है।'
+              }
+            </p>
+          </motion.div>
+
+          <div style={gridStyles}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={{
+                ...cardStyles,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: '#ffffff'
+              }}
+            >
+              <div style={{
+                ...iconStyles,
+                background: 'rgba(255, 255, 255, 0.2)'
+              }}>
+                <Trophy size={32} color="#ffffff" />
+              </div>
+              <h3 style={{
+                ...cardTitleStyles,
+                color: '#ffffff'
+              }}>
+                {isEnglish ? 'Top Selection' : 'शीर्ष चयन'}
+              </h3>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={{
+                ...cardStyles,
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                color: '#ffffff'
+              }}
+            >
+              <div style={{
+                ...iconStyles,
+                background: 'rgba(255, 255, 255, 0.2)'
+              }}>
+                <Zap size={32} color="#ffffff" />
+              </div>
+              <h3 style={{
+                ...cardTitleStyles,
+                color: '#ffffff'
+              }}>
+                {isEnglish ? 'Great Value' : 'महान मूल्य'}
+              </h3>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={{
+                ...cardStyles,
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                color: '#ffffff'
+              }}
+            >
+              <div style={{
+                ...iconStyles,
+                background: 'rgba(255, 255, 255, 0.2)'
+              }}>
+                <Shield size={32} color="#ffffff" />
+              </div>
+              <h3 style={{
+                ...cardTitleStyles,
+                color: '#ffffff'
+              }}>
+                {isEnglish ? 'Top-Notch Services' : 'शीर्ष-नॉच सेवाएं'}
+              </h3>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              style={{
+                ...cardStyles,
+                background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                color: '#ffffff'
+              }}
+            >
+              <div style={{
+                ...iconStyles,
+                background: 'rgba(255, 255, 255, 0.2)'
+              }}>
+                <Heart size={32} color="#ffffff" />
+              </div>
+              <h3 style={{
+                ...cardTitleStyles,
+                color: '#ffffff'
+              }}>
+                {isEnglish ? 'Exceptional Assistance' : 'असाधारण सहायता'}
+              </h3>
+            </motion.div>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            style={{
+              textAlign: 'center',
+              marginTop: '48px',
+              padding: '32px',
+              backgroundColor: '#f8fafc',
+              borderRadius: '12px',
+              border: '2px solid #e2e8f0'
+            }}
+          >
+            <p style={{
+              fontSize: '18px',
+              color: '#1f2937',
+              lineHeight: 1.6,
+              margin: '0 0 16px 0'
+            }}>
+              {isEnglish 
+                ? 'Partner with Mindware to leverage our two decades of experience and ensure your business operates with the precision, reliability, and superior quality that only India\'s best can provide.'
+                : 'हमारे दो दशकों के अनुभव का लाभ उठाने और अपने व्यवसाय को सटीकता, विश्वसनीयता और श्रेष्ठ गुणवत्ता के साथ संचालित करने के लिए माइंडवेयर के साथ साझेदारी करें।'
+              }
+            </p>
+            <p style={{
+              fontSize: '14px',
+              color: '#6b7280',
+              fontStyle: 'italic',
+              margin: 0
+            }}>
+              {isEnglish 
+                ? 'Disclaimer: All brands, logos, and trademarks mentioned, including but not limited to Zebra, TSC, Godex, Citizen, and Toshiba, are the property of their respective owners and are not the property of Mindware. We sell and service products from these companies.'
+                : 'अस्वीकरण: उल्लिखित सभी ब्रांड, लोगो और ट्रेडमार्क, जिनमें जेब्रा, टीएससी, गोडेक्स, सिटीजन और टोशिबा शामिल हैं, उनके संबंधित मालिकों की संपत्ति हैं।'
+              }
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section style={{
         padding: '80px 0',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%)',
-        color: '#ffffff',
+        background: '#ffffff',
+        color: '#1f2937',
         textAlign: 'center'
       }}>
         <div style={containerStyles}>
@@ -728,13 +1148,13 @@ const About = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 style={{
-                  backgroundColor: '#ffffff',
-                  color: '#667eea',
+                  backgroundColor: '#667eea',
+                  color: '#ffffff',
                   padding: '12px 32px',
                   borderRadius: '8px',
                   fontSize: '16px',
                   fontWeight: '600',
-                  border: 'none',
+                  border: '2px solid #667eea',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -742,7 +1162,7 @@ const About = () => {
                   transition: 'all 0.2s ease',
                   textDecoration: 'none'
                 }}
-                onClick={() => window.open('https://wa.me/919810822688?text=Hi, I want to know more about your barcode solutions', '_blank')}
+                onClick={() => window.open('https://wa.me/918800839490?text=Hi, I want to know more about your barcode solutions', '_blank')}
               >
                 <Phone size={20} />
                 {isEnglish ? 'Contact Us Now' : 'अभी संपर्क करें'}
@@ -753,13 +1173,13 @@ const About = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 style={{
-                  backgroundColor: 'transparent',
+                  backgroundColor: '#f093fb',
                   color: '#ffffff',
                   padding: '12px 32px',
                   borderRadius: '8px',
                   fontSize: '16px',
                   fontWeight: '600',
-                  border: '2px solid #ffffff',
+                  border: '2px solid #f093fb',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',

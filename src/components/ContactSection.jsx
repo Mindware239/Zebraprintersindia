@@ -1,40 +1,158 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Phone, Mail, MapPin, Clock, MessageCircle, Send, CheckCircle } from 'lucide-react';
+import { Phone, Mail, MapPin, Clock, MessageCircle, Send, CheckCircle, Globe, User, Building } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getTranslation } from '../translations/translations';
+import geolocationService from '../services/geolocation';
 import './ContactSection.css';
 
 const ContactSection = () => {
   const { language } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [userLocationData, setUserLocationData] = useState(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
 
   const schema = yup.object({
     name: yup.string().required('Name is required'),
     email: yup.string().email('Invalid email').required('Email is required'),
     phone: yup.string().required('Phone number is required'),
     company: yup.string().required('Company name is required'),
-    message: yup.string().required('Message is required')
+    message: yup.string().required('Message is required'),
+    country: yup.string().required('Country is required'),
+    cookieConsent: yup.boolean().oneOf([true], 'You must accept cookies to submit the form')
   });
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm({
-    resolver: yupResolver(schema)
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      country: 'India',
+      city: 'New Delhi'
+    }
   });
+
+  // Collect user location data on component mount
+  useEffect(() => {
+    const collectUserData = async () => {
+      try {
+        setIsLoadingLocation(true);
+        
+        // Check if we have cached data
+        let locationData = geolocationService.getStoredUserData();
+        
+        if (!locationData) {
+          // Collect fresh data
+          locationData = await geolocationService.collectUserData();
+          
+          // Store for future use
+          geolocationService.storeUserData(locationData);
+        }
+        
+        setUserLocationData(locationData);
+        
+        // Auto-fill form with detected data
+        if (locationData.country && locationData.country !== 'Unknown') {
+          setValue('country', locationData.country);
+        }
+        if (locationData.city && locationData.city !== 'Unknown') {
+          setValue('city', locationData.city);
+        }
+        
+        console.log('🌍 User location data collected:', locationData);
+        
+      } catch (error) {
+        console.error('Error collecting user data:', error);
+        // Set default values if geolocation fails
+        setUserLocationData({
+          country: 'India',
+          city: 'New Delhi',
+          timezone: 'Asia/Kolkata',
+          language: 'en-IN',
+          error: error.message
+        });
+      } finally {
+        setIsLoadingLocation(false);
+      }
+    };
+
+    collectUserData();
+  }, [setValue]);
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    reset();
     
-    // Reset success message after 5 seconds
-    setTimeout(() => setIsSubmitted(false), 5000);
+    try {
+      // Prepare comprehensive user data
+      const userData = {
+        // Form data
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        company: data.company,
+        message: data.message,
+        country: data.country,
+        city: data.city || userLocationData?.city || 'Not specified',
+        cookieConsent: data.cookieConsent,
+        
+        // System data
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        screenResolution: `${screen.width}x${screen.height}`,
+        viewportSize: `${window.innerWidth}x${window.innerHeight}`,
+        referrer: document.referrer || 'Direct',
+        timestamp: new Date().toISOString(),
+        
+        // Location data (if available)
+        detectedCountry: userLocationData?.country || 'Unknown',
+        detectedCity: userLocationData?.city || 'Unknown',
+        detectedRegion: userLocationData?.region || 'Unknown',
+        ipAddress: userLocationData?.ipAddress || 'Unknown',
+        countryCode: userLocationData?.countryCode || 'Unknown',
+        isGeolocationEnabled: userLocationData?.isGeolocationEnabled || false,
+        
+        // Browser capabilities
+        cookiesEnabled: navigator.cookieEnabled,
+        javascriptEnabled: true,
+        onlineStatus: navigator.onLine,
+        platform: navigator.platform,
+        browserLanguage: navigator.language,
+        
+        // Additional metadata
+        pageUrl: window.location.href,
+        pageTitle: document.title,
+        formSubmissionTime: new Date().toISOString()
+      };
+      
+      const response = await fetch('/api/contact-form', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Contact form submitted successfully:', result);
+        setIsSubmitted(true);
+        reset();
+        
+        // Reset success message after 5 seconds
+        setTimeout(() => setIsSubmitted(false), 5000);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit contact form');
+      }
+    } catch (error) {
+      console.error('Contact form submission error:', error);
+      alert('Failed to submit contact form. Please try again or contact us directly.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const sectionStyles = {
@@ -291,13 +409,13 @@ const ContactSection = () => {
     {
       icon: Phone,
       titleKey: 'contact.info.phone.title',
-      details: ['+91 9717122688', 'Mon-Fri 9AM-6PM'],
+      details: ['+91 8800839490', 'Mon-Fri 9AM-6PM'],
       color: '#10b981'
     },
     {
       icon: Mail,
       titleKey: 'contact.info.email.title',
-      details: ['info@zebraprintersindia.com', 'support@zebraprintersindia.com'],
+      details: ['gm@zebraprintersindia.com', 'gm@indianbarcode.com'],
       color: '#2563eb'
     },
     {
@@ -330,14 +448,14 @@ const ContactSection = () => {
       icon: Phone,
       title: 'Call Now',
       description: 'Speak directly with our experts',
-      action: 'tel:+919717122688',
+      action: 'tel:+918800839490',
       color: '#2563eb'
     },
     {
       icon: Mail,
       title: 'Email Us',
       description: 'Send us a detailed message',
-      action: 'mailto:info@zebraprintersindia.com',
+      action: 'mailto:gm@zebraprintersindia.com',
       color: '#8b5cf6'
     }
   ];
@@ -512,6 +630,32 @@ const ContactSection = () => {
               </div>
 
               <div className="form-group full-width">
+                <label className="form-label">Country</label>
+                <select
+                  {...register('country')}
+                  className="form-input"
+                  style={{ ...inputStyles, appearance: 'none', backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 4 5\'><path fill=\'%23666\' d=\'M2 0L0 2h4zm0 5L0 3h4z\'/></svg>")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '12px', paddingRight: '40px' }}
+                >
+                  <option value="">Select Country</option>
+                  <option value="India">India</option>
+                  <option value="United States">United States</option>
+                  <option value="United Kingdom">United Kingdom</option>
+                  <option value="Canada">Canada</option>
+                  <option value="Australia">Australia</option>
+                  <option value="Germany">Germany</option>
+                  <option value="France">France</option>
+                  <option value="Japan">Japan</option>
+                  <option value="China">China</option>
+                  <option value="Singapore">Singapore</option>
+                  <option value="UAE">UAE</option>
+                  <option value="Other">Other</option>
+                </select>
+                {errors.country && (
+                  <p style={errorStyles}>{errors.country.message}</p>
+                )}
+              </div>
+
+              <div className="form-group full-width">
                 <label className="form-label">{getTranslation('contact.form.message.label', language)}</label>
                 <textarea
                   {...register('message')}
@@ -520,6 +664,28 @@ const ContactSection = () => {
                 />
                 {errors.message && (
                   <p style={errorStyles}>{errors.message.message}</p>
+                )}
+              </div>
+
+              <div className="form-group full-width">
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
+                  <input
+                    {...register('cookieConsent')}
+                    type="checkbox"
+                    style={{
+                      marginTop: '4px',
+                      width: '16px',
+                      height: '16px',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span style={{ fontSize: '14px', color: '#374151', lineHeight: 1.5 }}>
+                    I agree to the storage and processing of my data as described in the privacy policy. 
+                    This includes my name, email, phone number, company, country, and message for the purpose of responding to my inquiry.
+                  </span>
+                </label>
+                {errors.cookieConsent && (
+                  <p style={errorStyles}>{errors.cookieConsent.message}</p>
                 )}
               </div>
 

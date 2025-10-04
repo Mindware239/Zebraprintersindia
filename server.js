@@ -1,21 +1,34 @@
 import express from 'express';
-import mysql from 'mysql2';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { getConnection, testConnection } from './database.js';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import XLSX from 'xlsx';
 import csv from 'csv-parser';
 import fs from 'fs';
+import nodemailer from 'nodemailer';
 import process from 'process';
 import session from 'express-session';
+import cron from 'node-cron';
 import { setupDatabase, checkDatabaseConnection } from './setup_database_caprover.js';
+import SitemapGenerator from './sitemap-generator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: 'process.env' });
+
+// Email configuration
+// Email configuration using Gmail with app password
+const emailTransporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'gm@indianbarcode.com',
+    pass: 'lgzm bfew gypf wttg'
+  }
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +40,8 @@ const storage = multer.diskStorage({
       cb(null, 'uploads/images/');
     } else if (file.fieldname === 'pdf') {
       cb(null, 'uploads/pdfs/');
+    } else if (file.fieldname === 'receipt') {
+      cb(null, 'uploads/temp/'); // For receipt files
     } else if (file.fieldname === 'file') {
       if (req.path.includes('/drivers')) {
         cb(null, 'uploads/drivers/');
@@ -43,9 +58,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
-  limits: {
-    fileSize: 20 * 1024 * 1024 // 20MB limit for bulk import
-  },
+  // No file size limits for drivers
   fileFilter: function (req, file, cb) {
     if (file.fieldname === 'image') {
       if (file.mimetype.startsWith('image/')) {
@@ -59,27 +72,26 @@ const upload = multer({
       } else {
         cb(new Error('Only PDF files are allowed for datasheets'));
       }
+    } else if (file.fieldname === 'receipt') {
+      // Allow PDF, images, and common document formats for receipts
+      const allowedMimes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/jpg', 
+        'image/png',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
+      if (allowedMimes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only PDF, JPG, PNG, DOC, DOCX files are allowed for receipts'));
+      }
     } else if (file.fieldname === 'file') {
       if (req.path.includes('/drivers')) {
-        // For driver files
-        const allowedTypes = [
-          'application/x-msdownload', // .exe
-          'application/x-msi', // .msi
-          'application/x-apple-diskimage', // .dmg
-          'application/x-pkg', // .pkg
-          'application/vnd.debian.binary-package', // .deb
-          'application/x-rpm', // .rpm
-          'application/vnd.android.package-archive', // .apk
-          'application/octet-stream' // Generic binary files
-        ];
-        const allowedExtensions = ['.exe', '.msi', '.dmg', '.pkg', '.deb', '.rpm', '.apk', '.ipa'];
-        const fileExtension = path.extname(file.originalname).toLowerCase();
-        
-        if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
-          cb(null, true);
-        } else {
-          cb(new Error('Only executable files (.exe, .msi, .dmg, .pkg, .deb, .rpm, .apk, .ipa) are allowed for drivers'));
-        }
+        // For driver files - accept ALL file types including .zip and all extensions
+        // Accept all file types for drivers
+        cb(null, true);
       } else {
         // Allow CSV and Excel files for bulk import
         const allowedMimes = [
@@ -106,6 +118,12 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
+// Set proper encoding for all responses
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
+
 // Additional CORS headers to ensure credentials are properly set
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -126,24 +144,22 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
-// Database connection pool with better error handling
-const db = mysql.createPool({
-  // Use environment variables from CapRover or local defaults
-  host: process.env.MYSQL_HOST || 'localhost',
-  user: process.env.MYSQL_USER || 'root',
-  password: process.env.MYSQL_PASSWORD || '',
-  database: process.env.MYSQL_DATABASE || 'zebra_db',
-  multipleStatements: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+// Use centralized database connection
+const db = getConnection();
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static('uploads'));
 app.use('/downloads', express.static('uploads/drivers'));
 
 // Serve static files from the React app build directory
 app.use(express.static(path.join(__dirname, 'dist')));
+
+// Serve .well-known directory for ACME challenges
+app.use('/.well-known', express.static(path.join(__dirname, 'public', '.well-known')));
+
+// Additional fallback for .well-known directory
+app.use('/.well-known', express.static(path.join(__dirname, '.well-known')));
 
 // Database connection middleware
 app.use((req, res, next) => {
@@ -152,18 +168,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// Database connection will be tested when first API call is made
-console.log('⚠️  Database connection will be tested on first API call');
+// Test database connection on startup
+testConnection();
 
-// Handle database pool errors
-db.on('error', (err) => {
-  console.error('❌ Database pool error:', err);
-  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-    console.log('🔄 Connection lost, pool will handle reconnection...');
-  } else {
-    console.error('❌ Database error (non-fatal):', err.message);
-    console.log('⚠️  Continuing with fallback data...');
-  }
+// Health check endpoint for CapRover
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
 
 // Handle uncaught database errors
@@ -179,6 +193,52 @@ process.on('uncaughtException', (err) => {
 });
 
 // Routes
+
+// ACME Challenge route for Let's Encrypt SSL certificates
+app.get('/.well-known/acme-challenge/:token', (req, res) => {
+  const { token } = req.params;
+  console.log(`ACME challenge requested for token: ${token}`);
+  
+  // Try multiple possible locations for the challenge file
+  const possiblePaths = [
+    path.join(__dirname, 'public', '.well-known', 'acme-challenge', token),
+    path.join(__dirname, '.well-known', 'acme-challenge', token),
+    path.join('/tmp', 'acme-challenge', token), // CapRover might use this
+    path.join('/var/www/html', '.well-known', 'acme-challenge', token) // Alternative location
+  ];
+  
+  let foundPath = null;
+  
+  // Check each possible path
+  for (const challengePath of possiblePaths) {
+    try {
+      if (fs.existsSync(challengePath)) {
+        foundPath = challengePath;
+        break;
+      }
+    } catch (err) {
+      // Continue to next path
+    }
+  }
+  
+  if (!foundPath) {
+    console.log(`ACME challenge file not found for token: ${token}`);
+    console.log('Searched paths:', possiblePaths);
+    return res.status(404).send('Challenge file not found');
+  }
+  
+  // Read and serve the challenge file
+  fs.readFile(foundPath, 'utf8', (readErr, data) => {
+    if (readErr) {
+      console.error('Error reading ACME challenge file:', readErr);
+      return res.status(500).send('Error reading challenge file');
+    }
+    
+    console.log(`Serving ACME challenge file: ${foundPath}`);
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(data);
+  });
+});
 
 // Simple health check for CapRover
 app.get('/health', (req, res) => {
@@ -245,6 +305,113 @@ app.get('/api/products', (req, res) => {
   });
 });
 
+// Get paginated products (all products) - Enhanced for admin panel
+app.get('/api/products/paginated', (req, res) => {
+  const { page = 1, limit = 20, search, category } = req.query;
+  const offset = (page - 1) * limit;
+  
+  // Build WHERE conditions
+  let whereConditions = [];
+  let queryParams = [];
+  
+  // For admin panel, show all products (not just active)
+  // whereConditions.push('p.status = ?');
+  // queryParams.push('active');
+  
+  // Add search condition
+  if (search && search.trim()) {
+    whereConditions.push('(p.name LIKE ? OR p.sku LIKE ? OR p.description LIKE ? OR p.shortDescription LIKE ?)');
+    const searchPattern = `%${search.trim()}%`;
+    queryParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+  }
+  
+  // Add category condition
+  if (category && category !== 'all') {
+    whereConditions.push('(p.category = ? OR p.category_name = ? OR c.name = ?)');
+    queryParams.push(category, category, category);
+  }
+  
+  const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+  
+  // First, get total count
+  const countQuery = `
+    SELECT COUNT(*) as total 
+    FROM products p
+    LEFT JOIN subcategories s ON p.subcategory_id = s.id
+    LEFT JOIN categories c ON s.category_id = c.id
+    ${whereClause}
+  `;
+  
+  db.query(countQuery, queryParams, (err, countResult) => {
+    if (err) {
+      console.error('Count query failed:', err);
+      return res.status(500).json({ error: 'Database query failed' });
+    }
+    
+    const totalProducts = countResult[0].total;
+    const totalPages = Math.ceil(totalProducts / limit);
+    
+    // Then get paginated products
+    const productsQuery = `
+      SELECT 
+        p.*,
+        s.name as subcategory_name,
+        s.display_name as subcategory_display_name,
+        c.name as category_name,
+        c.display_name as category_display_name
+      FROM products p
+      LEFT JOIN subcategories s ON p.subcategory_id = s.id
+      LEFT JOIN categories c ON s.category_id = c.id
+      ${whereClause}
+      ORDER BY p.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+    
+    db.query(productsQuery, [...queryParams, parseInt(limit), parseInt(offset)], (err, results) => {
+      if (err) {
+        console.error('Products query failed:', err);
+        return res.status(500).json({ error: 'Database query failed' });
+      }
+      
+      res.json({
+        products: results,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: totalPages,
+          totalProducts: totalProducts,
+          hasNextPage: parseInt(page) < totalPages,
+          hasPrevPage: parseInt(page) > 1,
+          limit: parseInt(limit)
+        }
+      });
+    });
+  });
+});
+
+// Get featured products (must be before /:id route)
+app.get('/api/products/featured', (req, res) => {
+  const { limit = 4 } = req.query;
+
+  const query = `
+    SELECT * FROM products 
+    WHERE status = 'active' AND featured = 1
+    ORDER BY created_at DESC
+    LIMIT ?
+  `;
+
+  db.query(query, [parseInt(limit)], (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+
+    res.json({
+      products: results,
+      count: results.length
+    });
+  });
+});
+
 // Get product by ID
 app.get('/api/products/:id', (req, res) => {
   const { id } = req.params;
@@ -263,14 +430,44 @@ app.get('/api/products/:id', (req, res) => {
 // Get product by slug
 app.get('/api/products/slug/:slug', (req, res) => {
   const { slug } = req.params;
-  const query = 'SELECT * FROM products WHERE slug = ?';
+  
+  // Try exact match first
+  let query = 'SELECT * FROM products WHERE slug = ?';
   db.query(query, [slug], (err, results) => {
     if (err) {
       res.status(500).json({ error: 'Database query failed' });
-    } else if (results.length === 0) {
-      res.status(404).json({ error: 'Product not found' });
-    } else {
+    } else if (results.length > 0) {
       res.json(results[0]);
+    } else {
+      // If no exact match, try to find by name or category variations
+      // Handle common slug variations like rfidcards -> rfid-cards
+      const variations = [
+        slug.replace(/cards?$/, '-cards'),
+        slug.replace(/printers?$/, '-printers'),
+        slug.replace(/scanners?$/, '-scanners'),
+        slug.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase(),
+        slug.replace(/([a-z])(\d)/g, '$1-$2'),
+        slug.replace(/(\d)([a-z])/g, '$1-$2')
+      ];
+      
+      // Try variations
+      const variationQueries = variations.map(variation => 
+        new Promise((resolve) => {
+          db.query('SELECT * FROM products WHERE slug = ?', [variation], (err, results) => {
+            if (err) resolve([]);
+            else resolve(results);
+          });
+        })
+      );
+      
+      Promise.all(variationQueries).then(results => {
+        const foundProduct = results.find(result => result.length > 0);
+        if (foundProduct && foundProduct.length > 0) {
+          res.json(foundProduct[0]);
+        } else {
+          res.status(404).json({ error: 'Product not found' });
+        }
+      });
     }
   });
 });
@@ -278,9 +475,167 @@ app.get('/api/products/slug/:slug', (req, res) => {
 // Get products by category
 app.get('/api/products/category/:category', (req, res) => {
   const { category } = req.params;
-  const query = 'SELECT * FROM products WHERE category = ?';
+  
+  // First try exact match
+  let query = 'SELECT * FROM products WHERE category = ?';
   db.query(query, [category], (err, results) => {
     if (err) {
+      res.status(500).json({ error: 'Database query failed' });
+    } else if (results.length > 0) {
+      res.json(results);
+    } else {
+      // Try category variations
+      const variations = [
+        category.replace(/cards?$/, '-cards'),
+        category.replace(/printers?$/, '-printers'),
+        category.replace(/scanners?$/, '-scanners'),
+        category.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
+      ];
+      
+      // Try variations
+      const variationQueries = variations.map(variation => 
+        new Promise((resolve) => {
+          db.query('SELECT * FROM products WHERE category = ?', [variation], (err, results) => {
+            if (err) resolve([]);
+            else resolve(results);
+          });
+        })
+      );
+      
+      Promise.all(variationQueries).then(results => {
+        const foundResults = results.find(result => result.length > 0);
+        if (foundResults && foundResults.length > 0) {
+          res.json(foundResults);
+        } else {
+          res.json([]);
+        }
+      });
+    }
+  });
+});
+
+// Search products - Enhanced with better search functionality
+app.get('/api/products/search/:query', (req, res) => {
+  const { query } = req.params;
+  
+  if (!query || query.trim().length === 0) {
+    return res.json([]);
+  }
+  
+  const searchTerm = `%${query.trim()}%`;
+  
+  // Enhanced search query that searches across multiple fields
+  const searchQuery = `
+    SELECT 
+      p.*
+    FROM products p
+    WHERE 
+      p.name LIKE ? OR 
+      p.description LIKE ? OR 
+      p.shortDescription LIKE ? OR
+      p.category LIKE ? OR
+      p.specifications LIKE ? OR
+      p.metaKeywords LIKE ? OR
+      p.brand LIKE ? OR
+      p.model LIKE ?
+    ORDER BY 
+      CASE 
+        WHEN p.name LIKE ? THEN 1
+        WHEN p.name LIKE ? THEN 2
+        ELSE 3
+      END,
+      p.name
+    LIMIT 50
+  `;
+  
+  const exactMatch = `${query.trim()}%`;
+  const partialMatch = searchTerm;
+  
+  db.query(searchQuery, [
+    searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,
+    exactMatch, partialMatch
+  ], (err, results) => {
+    if (err) {
+      console.error('Product search error:', err);
+      
+      // If database is not available, return sample search results
+      if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED' || err.code === 'ER_ACCESS_DENIED_ERROR') {
+        console.log('Database not available, returning sample search results');
+        const sampleResults = [
+          {
+            id: 1,
+            name: `Sample ${query} Product 1`,
+            description: `This is a sample product matching your search for "${query}"`,
+            price: 25000,
+            category: 'Desktop Printers',
+            brand: 'Zebra',
+            model: 'Sample Model 1',
+            image: '/uploads/sample-product-1.jpg',
+            slug: `sample-${query.toLowerCase().replace(/\s+/g, '-')}-product-1`
+          },
+          {
+            id: 2,
+            name: `Sample ${query} Product 2`,
+            description: `Another sample product matching your search for "${query}"`,
+            price: 35000,
+            category: 'Industrial Printers',
+            brand: 'Zebra',
+            model: 'Sample Model 2',
+            image: '/uploads/sample-product-2.jpg',
+            slug: `sample-${query.toLowerCase().replace(/\s+/g, '-')}-product-2`
+          }
+        ];
+        return res.json(sampleResults);
+      }
+      
+      res.status(500).json({ error: 'Database query failed' });
+    } else {
+      console.log(`Found ${results.length} products matching "${query}"`);
+      res.json(results);
+    }
+  });
+});
+
+// Real-time product search suggestions
+app.get('/api/products/search-suggestions/:query', (req, res) => {
+  const { query } = req.params;
+  
+  if (!query || query.trim().length < 2) {
+    return res.json([]);
+  }
+  
+  const searchTerm = `%${query.trim()}%`;
+  
+  const suggestionsQuery = `
+    SELECT DISTINCT 
+      name,
+      slug,
+      category,
+      brand
+    FROM products 
+    WHERE name LIKE ? OR category LIKE ? OR brand LIKE ?
+    ORDER BY 
+      CASE WHEN name LIKE ? THEN 1 ELSE 2 END,
+      name
+    LIMIT 10
+  `;
+  
+  const exactMatch = `${query.trim()}%`;
+  
+  db.query(suggestionsQuery, [searchTerm, searchTerm, searchTerm, exactMatch], (err, results) => {
+    if (err) {
+      console.error('Search suggestions error:', err);
+      
+      // If database is not available, return sample suggestions
+      if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED' || err.code === 'ER_ACCESS_DENIED_ERROR') {
+        console.log('Database not available, returning sample search suggestions');
+        const sampleSuggestions = [
+          { name: `Sample ${query} Printer`, slug: `sample-${query.toLowerCase()}-printer`, category: 'Desktop Printers', brand: 'Zebra' },
+          { name: `Sample ${query} Scanner`, slug: `sample-${query.toLowerCase()}-scanner`, category: 'Scanners', brand: 'Zebra' }
+        ];
+        return res.json(sampleSuggestions);
+      }
+      
       res.status(500).json({ error: 'Database query failed' });
     } else {
       res.json(results);
@@ -288,14 +643,130 @@ app.get('/api/products/category/:category', (req, res) => {
   });
 });
 
-// Search products
-app.get('/api/products/search/:query', (req, res) => {
-  const { query } = req.params;
-  const searchQuery = 'SELECT * FROM products WHERE name LIKE ? OR description LIKE ?';
-  const searchTerm = `%${query}%`;
-  db.query(searchQuery, [searchTerm, searchTerm], (err, results) => {
+// ==================== PAGINATED PRODUCTS API ====================
+// Get paginated products by category
+app.get('/api/products/category/:category/paginated', (req, res) => {
+  const { category } = req.params;
+  const { page = 1, limit = 8 } = req.query;
+  const offset = (page - 1) * limit;
+  
+  const query = `
+    SELECT 
+      p.*,
+      s.name as subcategory_name,
+      s.display_name as subcategory_display_name,
+      c.name as category_name,
+      c.display_name as category_display_name
+    FROM products p
+    LEFT JOIN subcategories s ON p.subcategory_id = s.id
+    LEFT JOIN categories c ON s.category_id = c.id
+    WHERE c.name = ? OR p.category = ?
+    ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?
+  `;
+  
+  const countQuery = `
+    SELECT COUNT(*) as total
+    FROM products p
+    LEFT JOIN subcategories s ON p.subcategory_id = s.id
+    LEFT JOIN categories c ON s.category_id = c.id
+    WHERE c.name = ? OR p.category = ?
+  `;
+  
+  db.query(query, [category, category, parseInt(limit), offset], (err, results) => {
     if (err) {
       res.status(500).json({ error: 'Database query failed' });
+    } else {
+      db.query(countQuery, [category, category], (err, countResult) => {
+        if (err) {
+          res.status(500).json({ error: 'Count query failed' });
+        } else {
+          const total = countResult[0].total;
+          const totalPages = Math.ceil(total / limit);
+          res.json({
+            products: results,
+            pagination: {
+              currentPage: parseInt(page),
+              totalPages,
+              totalProducts: total,
+              hasNextPage: page < totalPages,
+              hasPrevPage: page > 1
+            }
+          });
+        }
+      });
+    }
+  });
+});
+
+// Get paginated products by subcategory
+app.get('/api/products/subcategory/:subcategory/paginated', (req, res) => {
+  const { subcategory } = req.params;
+  const { page = 1, limit = 8 } = req.query;
+  const offset = (page - 1) * limit;
+  
+  const query = `
+    SELECT 
+      p.*,
+      s.name as subcategory_name,
+      s.display_name as subcategory_display_name,
+      c.name as category_name,
+      c.display_name as category_display_name
+    FROM products p
+    LEFT JOIN subcategories s ON p.subcategory_id = s.id
+    LEFT JOIN categories c ON s.category_id = c.id
+    WHERE s.name = ? OR p.subcategory_name = ?
+    ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?
+  `;
+  
+  const countQuery = `
+    SELECT COUNT(*) as total
+    FROM products p
+    LEFT JOIN subcategories s ON p.subcategory_id = s.id
+    WHERE s.name = ? OR p.subcategory_name = ?
+  `;
+  
+  db.query(query, [subcategory, subcategory, parseInt(limit), offset], (err, results) => {
+    if (err) {
+      res.status(500).json({ error: 'Database query failed' });
+    } else {
+      db.query(countQuery, [subcategory, subcategory], (err, countResult) => {
+        if (err) {
+          res.status(500).json({ error: 'Count query failed' });
+        } else {
+          const total = countResult[0].total;
+          const totalPages = Math.ceil(total / limit);
+          res.json({
+            products: results,
+            pagination: {
+              currentPage: parseInt(page),
+              totalPages,
+              totalProducts: total,
+              hasNextPage: page < totalPages,
+              hasPrevPage: page > 1
+            }
+          });
+        }
+      });
+    }
+  });
+});
+
+// Get subcategories by category
+app.get('/api/categories/:category/subcategories', (req, res) => {
+  const { category } = req.params;
+  const query = `
+    SELECT s.*, c.name as category_name, c.display_name as category_display_name
+    FROM subcategories s
+    LEFT JOIN categories c ON s.category_id = c.id
+    WHERE c.name = ?
+    ORDER BY s.name ASC
+  `;
+  
+  db.query(query, [category], (err, results) => {
+    if (err) {
+      res.status(500).json({ error: 'Failed to fetch subcategories' });
     } else {
       res.json(results);
     }
@@ -413,47 +884,75 @@ app.put('/api/products/:id', upload.fields([{ name: 'image', maxCount: 1 }, { na
       }
     }
 
-    // Build dynamic query based on what fields are provided
-    let query = 'UPDATE products SET ';
-    let values = [];
-    let setClauses = [];
+    // Check for slug conflicts before updating
+    if (slug) {
+      const slugCheckQuery = 'SELECT id FROM products WHERE slug = ? AND id != ?';
+      db.query(slugCheckQuery, [slug, id], (err, results) => {
+        if (err) {
+          console.error('Slug check error:', err);
+          return res.status(500).json({ error: 'Failed to check slug uniqueness' });
+        }
+        
+        if (results.length > 0) {
+          // Slug already exists for another product, generate unique slug
+          const uniqueSlug = `${slug}-${id}`;
+          console.log(`Slug conflict detected. Using unique slug: ${uniqueSlug}`);
+          
+          // Build dynamic query with unique slug
+          buildUpdateQuery(uniqueSlug);
+        } else {
+          // Slug is unique, proceed with update
+          buildUpdateQuery(slug);
+        }
+      });
+    } else {
+      // No slug provided, proceed without slug update
+      buildUpdateQuery(null);
+    }
 
-    if (name) { setClauses.push('name = ?'); values.push(name); }
-    if (slug) { setClauses.push('slug = ?'); values.push(slug); }
-    if (category) { setClauses.push('category = ?'); values.push(category); }
-    if (subcategory_id !== undefined) { setClauses.push('subcategory_id = ?'); values.push(subcategory_id || null); }
-    if (shortDescription) { setClauses.push('shortDescription = ?'); values.push(shortDescription); }
-    if (description) { setClauses.push('description = ?'); values.push(description); }
-    if (specifications) { setClauses.push('specifications = ?'); values.push(specifications); }
-    if (sku) { setClauses.push('sku = ?'); values.push(sku); }
-    if (metaKeywords) { setClauses.push('metaKeywords = ?'); values.push(metaKeywords); }
-    if (metaTitle) { setClauses.push('metaTitle = ?'); values.push(metaTitle); }
-    if (metaDescription) { setClauses.push('metaDescription = ?'); values.push(metaDescription); }
-    if (status) { setClauses.push('status = ?'); values.push(status); }
-    if (featured !== undefined) { setClauses.push('featured = ?'); values.push(featured ? 1 : 0); }
-    if (imagePath) { setClauses.push('image = ?'); values.push(imagePath); }
-    if (pdfPath) { setClauses.push('pdf = ?'); values.push(pdfPath); }
-    
-    setClauses.push('features = ?'); values.push(JSON.stringify(features));
-    setClauses.push('updated_at = NOW()'); // Always update the timestamp
+    function buildUpdateQuery(finalSlug) {
+      // Build dynamic query based on what fields are provided
+      let query = 'UPDATE products SET ';
+      let values = [];
+      let setClauses = [];
 
-    query += setClauses.join(', ') + ' WHERE id = ?';
-    values.push(id);
-    
-    console.log('Update query:', query);
-    console.log('Update values:', values);
-    
-    db.query(query, values, (err) => {
-      if (err) {
-        console.error('Error updating product:', err);
-        res.status(500).json({ error: 'Failed to update product' });
-      } else {
-        res.json({ 
-          id: id, 
-          message: 'Product updated successfully' 
-        });
-      }
-    });
+      if (name) { setClauses.push('name = ?'); values.push(name); }
+      if (finalSlug) { setClauses.push('slug = ?'); values.push(finalSlug); }
+      if (category) { setClauses.push('category = ?'); values.push(category); }
+      if (subcategory_id !== undefined) { setClauses.push('subcategory_id = ?'); values.push(subcategory_id || null); }
+      if (shortDescription) { setClauses.push('shortDescription = ?'); values.push(shortDescription); }
+      if (description) { setClauses.push('description = ?'); values.push(description); }
+      if (specifications) { setClauses.push('specifications = ?'); values.push(specifications); }
+      if (sku) { setClauses.push('sku = ?'); values.push(sku); }
+      if (metaKeywords) { setClauses.push('metaKeywords = ?'); values.push(metaKeywords); }
+      if (metaTitle) { setClauses.push('metaTitle = ?'); values.push(metaTitle); }
+      if (metaDescription) { setClauses.push('metaDescription = ?'); values.push(metaDescription); }
+      if (status) { setClauses.push('status = ?'); values.push(status); }
+      if (featured !== undefined) { setClauses.push('featured = ?'); values.push(featured ? 1 : 0); }
+      if (imagePath) { setClauses.push('image = ?'); values.push(imagePath); }
+      if (pdfPath) { setClauses.push('pdf = ?'); values.push(pdfPath); }
+      
+      setClauses.push('features = ?'); values.push(JSON.stringify(features));
+      setClauses.push('updated_at = NOW()'); // Always update the timestamp
+
+      query += setClauses.join(', ') + ' WHERE id = ?';
+      values.push(id);
+      
+      console.log('Update query:', query);
+      console.log('Update values:', values);
+      
+      db.query(query, values, (err) => {
+        if (err) {
+          console.error('Error updating product:', err);
+          res.status(500).json({ error: 'Failed to update product' });
+        } else {
+          res.json({ 
+            id: id, 
+            message: 'Product updated successfully' 
+          });
+        }
+      });
+    }
   } catch (error) {
     console.error('Error processing product update:', error);
     console.error('Error stack:', error.stack);
@@ -1462,11 +1961,126 @@ app.delete('/api/brands/:id', (req, res) => {
 
 // ==================== DRIVERS API ====================
 
+// Test database connection and table
+app.get('/api/drivers/test', (req, res) => {
+  const testQuery = 'SHOW TABLES LIKE "drivers"';
+  db.query(testQuery, (err, results) => {
+    if (err) {
+      console.error('Database test error:', err);
+      res.status(500).json({ error: 'Database connection failed', details: err.message });
+    } else if (results.length === 0) {
+      res.status(404).json({ error: 'Drivers table does not exist' });
+    } else {
+      // Test table structure
+      const structureQuery = 'DESCRIBE drivers';
+      db.query(structureQuery, (err, structure) => {
+        if (err) {
+          res.status(500).json({ error: 'Failed to get table structure', details: err.message });
+        } else {
+          res.json({ 
+            success: true, 
+            message: 'Database and table are working',
+            tableExists: true,
+            columns: structure
+          });
+        }
+      });
+    }
+  });
+});
+
+// Setup drivers table if it doesn't exist
+app.post('/api/drivers/setup', (req, res) => {
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS drivers (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      version VARCHAR(50) NOT NULL,
+      category ENUM('printer', 'scanner', 'mobile', 'utility') NOT NULL,
+      operating_system ENUM('windows', 'macos', 'linux', 'android', 'ios') NOT NULL,
+      description TEXT,
+      compatibility TEXT,
+      file_name VARCHAR(255),
+      file_path VARCHAR(500),
+      file_size BIGINT,
+      download_url VARCHAR(500),
+      release_date DATE,
+      status ENUM('active', 'inactive') DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `;
+  
+  db.query(createTableQuery, (err, results) => {
+    if (err) {
+      console.error('Error creating drivers table:', err);
+      res.status(500).json({ 
+        error: 'Failed to create drivers table', 
+        details: err.message 
+      });
+    } else {
+      console.log('Drivers table created successfully');
+      res.json({ 
+        success: true, 
+        message: 'Drivers table created successfully' 
+      });
+    }
+  });
+});
+
+// Fix drivers table schema - add missing columns
+app.post('/api/drivers/fix-schema', (req, res) => {
+  const fixQueries = [
+    "ALTER TABLE drivers ADD COLUMN IF NOT EXISTS file_path VARCHAR(500)",
+    "ALTER TABLE drivers ADD COLUMN IF NOT EXISTS file_name VARCHAR(255)",
+    "ALTER TABLE drivers ADD COLUMN IF NOT EXISTS file_size BIGINT",
+    "ALTER TABLE drivers ADD COLUMN IF NOT EXISTS download_url VARCHAR(500)",
+    "ALTER TABLE drivers ADD COLUMN IF NOT EXISTS release_date DATE",
+    "ALTER TABLE drivers ADD COLUMN IF NOT EXISTS status ENUM('active', 'inactive') DEFAULT 'active'",
+    "ALTER TABLE drivers ADD COLUMN IF NOT EXISTS compatibility TEXT",
+    "ALTER TABLE drivers ADD COLUMN IF NOT EXISTS category ENUM('printer', 'scanner', 'mobile', 'utility') NOT NULL DEFAULT 'printer'",
+    "ALTER TABLE drivers ADD COLUMN IF NOT EXISTS operating_system ENUM('windows', 'macos', 'linux', 'android', 'ios') NOT NULL DEFAULT 'windows'"
+  ];
+
+  let completed = 0;
+  let errors = [];
+
+  fixQueries.forEach((query, index) => {
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error(`Error executing query ${index + 1}:`, err);
+        errors.push({ query: index + 1, error: err.message });
+      } else {
+        console.log(`✅ Query ${index + 1} executed successfully`);
+      }
+      
+      completed++;
+      
+      if (completed === fixQueries.length) {
+        if (errors.length > 0) {
+          res.status(500).json({ 
+            error: 'Some queries failed', 
+            details: errors,
+            success: false
+          });
+        } else {
+          res.json({ 
+            success: true, 
+            message: 'Drivers table schema fixed successfully',
+            queriesExecuted: fixQueries.length
+          });
+        }
+      }
+    });
+  });
+});
+
 // Get all drivers
 app.get('/api/drivers', (req, res) => {
   const query = 'SELECT * FROM drivers WHERE status = "active" ORDER BY created_at DESC';
   db.query(query, (err, results) => {
     if (err) {
+      console.error('Drivers query error:', err);
       res.status(500).json({ error: 'Failed to fetch drivers' });
     } else {
       // Format the results to match frontend expectations
@@ -1518,51 +2132,1370 @@ app.get('/api/drivers/:id', (req, res) => {
   });
 });
 
+// Contact form submission endpoint
+app.post('/api/contact/submit', async (req, res) => {
+  try {
+    console.log('Contact form submission received:', req.body);
+    
+    const { name, email, mobile, company, city, message, country, cookieConsent } = req.body;
+    
+    // Validate required fields
+    if (!name || !email || !mobile || !city || !message) {
+      console.log('Validation failed - missing required fields');
+      return res.status(400).json({ error: 'Name, email, mobile number, city, and message are required' });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.log('Validation failed - invalid email format');
+      return res.status(400).json({ error: 'Please enter a valid email address' });
+    }
+    
+    // Validate mobile number (10+ digits)
+    const mobileRegex = /^[0-9]{10,}$/;
+    if (!mobileRegex.test(mobile.replace(/\s/g, ''))) {
+      console.log('Validation failed - invalid mobile number');
+      return res.status(400).json({ error: 'Mobile number must contain only digits and be at least 10 digits long' });
+    }
+    
+    // Get client IP and user agent
+    const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
+    const userAgent = req.get('User-Agent');
+    const timestamp = new Date().toISOString();
+    
+    // Insert into database
+    const insertQuery = `
+      INSERT INTO contact_form (name, email, mobile, company, city, message, country, ip_address, user_agent, cookie_consent, submission_timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    db.query(insertQuery, [name, email, mobile, company, city, message, country, ipAddress, userAgent, cookieConsent, timestamp], async (err, result) => {
+      if (err) {
+        console.error('Database insert error:', err);
+        return res.status(500).json({ error: 'Failed to save contact form. Please try again.' });
+      }
+      
+      console.log('Contact form saved to database with ID:', result.insertId);
+      
+      // Prepare email content
+      const emailContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
+            New User Form Submission from Website
+          </h2>
+          
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1f2937; margin-top: 0;">Contact Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151; width: 120px;">Full Name:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${name}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Email Address:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Mobile Number:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${mobile}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Company/Organization:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${company || 'Not provided'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Country:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${country || 'Not provided'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">City:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${city}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Cookie Consent:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${cookieConsent ? 'Yes' : 'No'}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="background-color: #ffffff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1f2937; margin-top: 0;">Message/Requirement</h3>
+            <p style="color: #374151; line-height: 1.6; margin: 0;">${message}</p>
+          </div>
+          
+          <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h4 style="color: #1e40af; margin-top: 0;">Submission Details</h4>
+            <p style="color: #374151; margin: 5px 0;"><strong>Submission ID:</strong> ${result.insertId}</p>
+            <p style="color: #374151; margin: 5px 0;"><strong>Date & Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+            <p style="color: #374151; margin: 5px 0;"><strong>IP Address:</strong> ${ipAddress}</p>
+            <p style="color: #374151; margin: 5px 0;"><strong>Browser:</strong> ${userAgent}</p>
+            <p style="color: #374151; margin: 5px 0;"><strong>Cookie Consent:</strong> ${cookieConsent ? 'Accepted' : 'Rejected'}</p>
+          </div>
+          
+          <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h4 style="color: #92400e; margin-top: 0;">Next Steps</h4>
+            <p style="color: #374151; margin: 5px 0;">Please respond to this inquiry within 24 hours for better customer satisfaction.</p>
+            <p style="color: #374151; margin: 5px 0;">You can reply directly to this email or contact the customer using the provided details.</p>
+          </div>
+          
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+          <p style="color: #6b7280; font-size: 12px; text-align: center; margin: 0;">
+            This email was automatically generated from the Zebra Printers India contact form.<br>
+            For support, contact: gm@zebraprintersindia.com | +91 8800839490
+          </p>
+        </div>
+      `;
+      
+      // Email options
+      const mailOptions = {
+        from: '"Zebra Printers India Contact Form" <gm@indianbarcode.com>',
+        to: 'gm@indianbarcode.com',
+        replyTo: email,
+        subject: 'New User Form Submission from Website',
+        text: `
+New User Form Submission from Website
+
+Contact Details:
+- Full Name: ${name}
+- Email Address: ${email}
+- Mobile Number: ${mobile}
+- Company/Organization: ${company || 'Not provided'}
+- City: ${city}
+
+Message/Requirement:
+${message}
+
+Submission Details:
+- Submission ID: ${result.insertId}
+- Date & Time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+- IP Address: ${ipAddress}
+- Browser: ${userAgent}
+- Cookie Consent: ${cookieConsent ? 'Accepted' : 'Rejected'}
+
+Please respond to this inquiry within 24 hours for better customer satisfaction.
+
+Best regards,
+Zebra Printers India System
+        `,
+        html: emailContent
+      };
+      
+      // Send email with retry logic
+      const sendEmailWithRetry = async (mailOptions, retries = 3) => {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+          try {
+            console.log(`📧 Sending contact form email (attempt ${attempt}/${retries})...`);
+            const info = await emailTransporter.sendMail(mailOptions);
+            console.log('✅ Contact form email sent successfully!');
+            console.log('📧 Message ID:', info.messageId);
+            return info;
+          } catch (emailError) {
+            console.error(`❌ Email attempt ${attempt} failed:`, emailError.message);
+            if (attempt === retries) {
+              throw emailError;
+            }
+            console.log(`⏳ Waiting 2 seconds before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+      };
+      
+      try {
+        await sendEmailWithRetry(mailOptions);
+        console.log('✅ Contact form processed successfully!');
+        
+        // Log form data to file as backup
+        const formDataLog = {
+          timestamp: new Date().toISOString(),
+          id: result.insertId,
+          name,
+          email,
+          mobile,
+          company,
+          city,
+          message,
+          ipAddress,
+          userAgent,
+          cookieConsent
+        };
+        
+        fs.appendFileSync('form_submissions.log', JSON.stringify(formDataLog) + '\n');
+        
+        res.json({ 
+          success: true, 
+          message: 'Thank you for your message! We will get back to you within 24 hours.',
+          submissionId: result.insertId
+        });
+        
+      } catch (emailError) {
+        console.error('❌ Failed to send email:', emailError);
+        
+        // Still log the form data even if email fails
+        const formDataLog = {
+          timestamp: new Date().toISOString(),
+          id: result.insertId,
+          name,
+          email,
+          mobile,
+          company,
+          city,
+          message,
+          ipAddress,
+          userAgent,
+          cookieConsent,
+          emailError: emailError.message
+        };
+        
+        fs.appendFileSync('form_submissions.log', JSON.stringify(formDataLog) + '\n');
+        
+        // Return success even if email fails, but log the issue
+        res.json({ 
+          success: true, 
+          message: 'Thank you for your message! We have received your inquiry and will get back to you soon.',
+          submissionId: result.insertId,
+          warning: 'Email notification failed, but your message was saved.'
+        });
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Contact form submission error:', error);
+    res.status(500).json({ error: 'Internal server error. Please try again later.' });
+  }
+});
+
+// Cookie acceptance email generation function
+function generateWelcomeEmail(userData) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #667eea; margin-bottom: 10px;">🎉 Welcome to Zebra Printers India!</h1>
+        <p style="color: #666; font-size: 16px;">Thank you for accepting our cookies and trusting us with your data.</p>
+      </div>
+      
+      <div style="background-color: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 25px;">
+        <h2 style="color: #333; margin-top: 0;">🍪 Cookie Consent Confirmed</h2>
+        <p style="color: #555; line-height: 1.6;">
+          Your cookie preferences have been saved successfully. We use cookies to:
+        </p>
+        <ul style="color: #555; line-height: 1.8;">
+          <li>✅ Enhance your browsing experience</li>
+          <li>📊 Analyze website traffic and performance</li>
+          <li>🎯 Personalize content and recommendations</li>
+          <li>🔒 Ensure website security and functionality</li>
+        </ul>
+      </div>
+      
+      <div style="background-color: #e8f4fd; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+        <h3 style="color: #1e40af; margin-top: 0;">🌍 Your Location Data</h3>
+        <p style="color: #374151; margin: 5px 0;">
+          <strong>Country:</strong> ${userData?.detectedCountry || 'Unknown'}
+        </p>
+        <p style="color: #374151; margin: 5px 0;">
+          <strong>City:</strong> ${userData?.detectedCity || 'Unknown'}
+        </p>
+        <p style="color: #374151; margin: 5px 0;">
+          <strong>Timezone:</strong> ${userData?.timezone || 'Unknown'}
+        </p>
+      </div>
+      
+      <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+        <h3 style="color: #15803d; margin-top: 0;">💻 System Information</h3>
+        <p style="color: #374151; margin: 5px 0;">
+          <strong>Browser:</strong> ${userData?.browserVersion || 'Unknown'}
+        </p>
+        <p style="color: #374151; margin: 5px 0;">
+          <strong>Operating System:</strong> ${userData?.osInfo || 'Unknown'}
+        </p>
+        <p style="color: #374151; margin: 5px 0;">
+          <strong>Device:</strong> ${userData?.isMobile ? 'Mobile' : userData?.isDesktop ? 'Desktop' : 'Unknown'}
+        </p>
+        <p style="color: #374151; margin: 5px 0;">
+          <strong>Language:</strong> ${userData?.language || 'Unknown'}
+        </p>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <h3 style="color: #333;">🚀 What's Next?</h3>
+        <p style="color: #666; line-height: 1.6;">
+          Now that you've accepted cookies, you'll get the best experience on our website with:
+        </p>
+        <ul style="color: #666; line-height: 1.8; text-align: left; max-width: 400px; margin: 0 auto;">
+          <li>🎯 Personalized product recommendations</li>
+          <li>📱 Optimized mobile experience</li>
+          <li>⚡ Faster page loading</li>
+          <li>🔍 Enhanced search functionality</li>
+        </ul>
+      </div>
+      
+      <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+        <h3 style="color: #856404; margin-top: 0;">🔒 Your Privacy Matters</h3>
+        <p style="color: #856404; margin: 0;">
+          We respect your privacy and handle your data with care. You can change your cookie preferences at any time by clicking the cookie settings in our footer.
+        </p>
+      </div>
+      
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="https://zebraprintersindia.com/products" 
+           style="background-color: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+          🛍️ Explore Our Products
+        </a>
+      </div>
+      
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+      
+      <div style="text-align: center; color: #6b7280; font-size: 14px;">
+        <p style="margin: 5px 0;">
+          <strong>Zebra Printers India</strong><br>
+          📧 Email: gm@indianbarcode.com | 📞 Phone: +91 8800839490
+        </p>
+        <p style="margin: 5px 0; font-size: 12px;">
+          This email was sent because you accepted cookies on our website.<br>
+          If you have any questions about our cookie policy, please contact us.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+function generateCookieAcceptanceEmail(userData, serverIp, trackingId) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #333; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+        🍪 New Cookie Acceptance - ${userData?.detectedCountry || 'Unknown Country'} | ${new Date().toLocaleDateString('en-IN')}
+      </h2>
+      
+      <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #1e40af; margin-top: 0;">🎯 Cookie Acceptance Summary</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; font-weight: bold; color: #374151; width: 140px;">Action:</td>
+            <td style="padding: 8px 0; color: #1f2937;">✅ Cookies Accepted</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: bold; color: #374151;">Timestamp:</td>
+            <td style="padding: 8px 0; color: #1f2937;">📅 ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: bold; color: #374151;">Tracking ID:</td>
+            <td style="padding: 8px 0; color: #1f2937;">#${trackingId}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #1f2937; margin-top: 0;">🌍 Location Information</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151; width: 140px;">Country:</td>
+            <td style="padding: 6px 0; color: #1f2937;">🌍 ${userData?.detectedCountry || 'Unknown'} (${userData?.countryCode || 'N/A'})</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">City:</td>
+            <td style="padding: 6px 0; color: #1f2937;">🏙️ ${userData?.detectedCity || 'Unknown'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Region:</td>
+            <td style="padding: 6px 0; color: #1f2937;">🗺️ ${userData?.detectedRegion || 'Unknown'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">IP Address:</td>
+            <td style="padding: 6px 0; color: #1f2937;">🌐 ${serverIp || 'Unknown'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Geolocation:</td>
+            <td style="padding: 6px 0; color: #1f2937;">${userData?.isGeolocationEnabled ? '✅ Enabled' : '❌ Disabled'}</td>
+          </tr>
+        </table>
+      </div>
+      
+      <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #15803d; margin-top: 0;">💻 System Information</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151; width: 140px;">Browser:</td>
+            <td style="padding: 6px 0; color: #1f2937;">🌐 ${userData?.browserVersion || 'Unknown'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Operating System:</td>
+            <td style="padding: 6px 0; color: #1f2937;">💻 ${userData?.osInfo || 'Unknown'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Device Type:</td>
+            <td style="padding: 6px 0; color: #1f2937;">
+              ${userData?.isMobile ? '📱 Mobile' : userData?.isTablet ? '📱 Tablet' : userData?.isDesktop ? '🖥️ Desktop' : '❓ Unknown'}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Language:</td>
+            <td style="padding: 6px 0; color: #1f2937;">🗣️ ${userData?.language || 'Unknown'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Timezone:</td>
+            <td style="padding: 6px 0; color: #1f2937;">⏰ ${userData?.timezone || 'Unknown'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Screen Resolution:</td>
+            <td style="padding: 6px 0; color: #1f2937;">📱 ${userData?.screenResolution || 'Unknown'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Connection:</td>
+            <td style="padding: 6px 0; color: #1f2937;">📶 ${userData?.connectionType || 'Unknown'}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #92400e; margin-top: 0;">🔗 Page & Session Information</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151; width: 140px;">Page URL:</td>
+            <td style="padding: 6px 0; color: #1f2937;">🌐 ${userData?.pageUrl || 'Unknown'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Page Title:</td>
+            <td style="padding: 6px 0; color: #1f2937;">📄 ${userData?.pageTitle || 'Unknown'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Referrer:</td>
+            <td style="padding: 6px 0; color: #1f2937;">🔗 ${userData?.referrer || 'Direct visit'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Session Start:</td>
+            <td style="padding: 6px 0; color: #1f2937;">⏰ ${new Date(userData?.sessionStartTime || Date.now()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Online Status:</td>
+            <td style="padding: 6px 0; color: #1f2937;">${userData?.onLine ? '🟢 Online' : '🔴 Offline'}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #1e40af; margin-top: 0;">🎯 Marketing Intelligence</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151; width: 140px;">Traffic Source:</td>
+            <td style="padding: 6px 0; color: #1f2937;">${userData?.referrer?.includes('google') ? '🔍 Google Search' : userData?.referrer?.includes('facebook') ? '📘 Facebook' : userData?.referrer?.includes('linkedin') ? '💼 LinkedIn' : '🌐 Direct/Other'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Device Priority:</td>
+            <td style="padding: 6px 0; color: #1f2937;">${userData?.isMobile ? '📱 Mobile-First' : userData?.isDesktop ? '🖥️ Desktop-First' : '📱 Mixed'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Language Preference:</td>
+            <td style="padding: 6px 0; color: #1f2937;">🗣️ ${userData?.language || 'Unknown'} ${userData?.languages ? `(${userData.languages.join(', ')})` : ''}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: bold; color: #374151;">Technical Level:</td>
+            <td style="padding: 6px 0; color: #1f2937;">⚙️ ${userData?.hardwareConcurrency ? `${userData.hardwareConcurrency} cores` : 'Unknown'} | ${userData?.deviceMemory ? `${userData.deviceMemory}GB RAM` : 'Unknown'}</td>
+          </tr>
+        </table>
+      </div>
+      
+      <div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+        <h3 style="color: #92400e; margin-top: 0;">🎯 Action Items</h3>
+        <ul style="color: #374151; margin: 0; padding-left: 20px;">
+          <li>📊 <strong>Track Engagement</strong> - User accepted cookies from ${userData?.detectedCountry || 'Unknown'}</li>
+          <li>🎯 <strong>Geographic Targeting</strong> - ${userData?.detectedCity || 'Unknown'} market opportunity</li>
+          <li>📱 <strong>Device Optimization</strong> - ${userData?.isMobile ? 'Mobile' : userData?.isDesktop ? 'Desktop' : 'Mixed'} user experience</li>
+          <li>🌐 <strong>Traffic Source Analysis</strong> - ${userData?.referrer?.includes('google') ? 'Google search traffic' : 'Direct/other traffic'}</li>
+          <li>📈 <strong>Marketing Attribution</strong> - ${userData?.referrer || 'Direct visit'} source</li>
+        </ul>
+      </div>
+      
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+      <p style="color: #6b7280; font-size: 12px; text-align: center; margin: 0;">
+        🚀 <strong>Automated Cookie Tracking System</strong><br>
+        📧 Support: gm@zebraprintersindia.com | 📞 +91 8800839490<br>
+        🕒 Tracking ID: #${trackingId} | 📅 ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+      </p>
+    </div>
+  `;
+}
+
+// Cookie acceptance tracking endpoint
+app.post('/api/cookie-acceptance', async (req, res) => {
+  try {
+    console.log('🍪 Cookie acceptance data received:', req.body);
+    
+    const { action, userData, timestamp } = req.body;
+    
+    if (action !== 'cookie_accepted') {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+    
+    // Get server-side data
+    const serverIpAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
+    const serverUserAgent = req.get('User-Agent');
+    const serverTimestamp = new Date().toISOString();
+    
+    // Store tracking data in database
+    const insertQuery = `
+      INSERT INTO user_tracking (action, data, timestamp, user_agent, url, page_title, ip_address)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    const trackingData = {
+      action: 'cookie_accepted',
+      userData: userData,
+      timestamp: timestamp,
+      serverData: {
+        serverIp: serverIpAddress,
+        serverUserAgent: serverUserAgent,
+        serverTimestamp: serverTimestamp
+      }
+    };
+    
+    db.query(insertQuery, [
+      'cookie_accepted',
+      JSON.stringify(trackingData),
+      serverTimestamp,
+      serverUserAgent,
+      userData?.pageUrl || 'Unknown',
+      userData?.pageTitle || 'Unknown',
+      serverIpAddress
+    ], async (err, result) => {
+      if (err) {
+        console.error('Database insert error:', err);
+        return res.status(500).json({ error: 'Failed to save tracking data' });
+      }
+      
+      console.log('✅ Cookie acceptance tracking data saved with ID:', result.insertId);
+      
+      // Send comprehensive email notification
+      try {
+        const emailContent = generateCookieAcceptanceEmail(userData, serverIpAddress, result.insertId);
+        
+        const mailOptions = {
+          from: `"Zebra Printers India Cookie Tracker" <${process.env.GMAIL_USER}>`,
+          to: process.env.GMAIL_USER,
+          subject: `🍪 New Cookie Acceptance - ${userData?.detectedCountry || 'Unknown Country'} | ${new Date().toLocaleDateString('en-IN')}`,
+          html: emailContent
+        };
+        
+        console.log('📧 Sending cookie acceptance email notification...');
+        const emailResult = await emailTransporter.sendMail(mailOptions);
+        console.log('✅ Cookie acceptance email sent successfully!');
+        console.log('📧 Message ID:', emailResult.messageId);
+        
+        res.json({ 
+          success: true, 
+          message: 'Cookie acceptance tracked and email sent',
+          trackingId: result.insertId
+        });
+        
+      } catch (emailError) {
+        console.error('❌ Email sending failed:', emailError);
+        res.json({ 
+          success: true, 
+          message: 'Cookie acceptance tracked but email failed',
+          trackingId: result.insertId,
+          emailError: emailError.message
+        });
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Cookie acceptance tracking error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Send welcome email to user when they accept cookies
+app.post('/api/send-welcome-email', async (req, res) => {
+  try {
+    console.log('📧 Welcome email request received:', req.body);
+    
+    const { userData, timestamp } = req.body;
+    
+    if (!userData) {
+      return res.status(400).json({ error: 'User data is required' });
+    }
+    
+    // Generate welcome email content
+    const welcomeEmailContent = generateWelcomeEmail(userData);
+    
+    const mailOptions = {
+      from: `"Zebra Printers India" <${process.env.GMAIL_USER}>`,
+      to: process.env.GMAIL_USER, // You can change this to user's email if they provide it
+      subject: `🎉 Welcome to Zebra Printers India - Cookie Consent Confirmed`,
+      html: welcomeEmailContent
+    };
+    
+    console.log('📧 Sending welcome email to user...');
+    const emailResult = await emailTransporter.sendMail(mailOptions);
+    console.log('✅ Welcome email sent successfully!');
+    console.log('📧 Message ID:', emailResult.messageId);
+    
+    res.json({ 
+      success: true, 
+      message: 'Welcome email sent successfully',
+      messageId: emailResult.messageId
+    });
+    
+  } catch (error) {
+    console.error('❌ Welcome email sending failed:', error);
+    res.status(500).json({ 
+      error: 'Failed to send welcome email',
+      details: error.message
+    });
+  }
+});
+
+// Contact form submission endpoint (alternative route)
+app.post('/api/contact-form', async (req, res) => {
+  try {
+    console.log('📝 Contact form submission received:', req.body);
+    
+    const { 
+      name, email, phone, company, city, message, country, cookieConsent,
+      userAgent, language, timezone, screenResolution, viewportSize, referrer,
+      detectedCountry, detectedCity, detectedRegion, ipAddress, countryCode,
+      cookiesEnabled, javascriptEnabled, onlineStatus, platform, browserLanguage,
+      pageUrl, pageTitle, formSubmissionTime, isGeolocationEnabled
+    } = req.body;
+    
+    // Validate required fields
+    if (!name || !email || !phone || !message) {
+      console.log('Validation failed - missing required fields');
+      return res.status(400).json({ error: 'Name, email, phone number, and message are required' });
+    }
+
+    // Validate cookie consent
+    if (!cookieConsent) {
+      console.log('Validation failed - cookie consent not given');
+      return res.status(400).json({ error: 'You must accept cookies to submit the form' });
+    }
+
+    console.log('✅ All validations passed');
+    console.log('📝 Form data:', { name, email, phone, company, city, message, country, cookieConsent });
+
+    // Get client IP and user agent (server-side)
+    const serverIpAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
+    const serverUserAgent = req.get('User-Agent');
+    const timestamp = new Date().toISOString();
+    
+    // Insert into database
+    const insertQuery = `
+      INSERT INTO contact_form (name, email, mobile, company, city, message, country, ip_address, user_agent, cookie_consent, submission_timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    db.query(insertQuery, [name, email, phone, company, city, message, country, serverIpAddress, serverUserAgent, cookieConsent, timestamp], async (err, result) => {
+      if (err) {
+        console.error('Database insert error:', err);
+        return res.status(500).json({ error: 'Failed to save contact form. Please try again.' });
+      }
+      
+      console.log('Contact form saved to database with ID:', result.insertId);
+      
+      // Prepare comprehensive email content
+      const emailContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
+            🎉 New Lead: ${name} from ${detectedCountry || country} | ${new Date().toLocaleDateString('en-IN')}
+          </h2>
+          
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1f2937; margin-top: 0;">👤 Customer Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151; width: 140px;">Full Name:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${name}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Email Address:</td>
+                <td style="padding: 8px 0; color: #1f2937;"><a href="mailto:${email}" style="color: #2563eb; text-decoration: none;">${email}</a></td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Mobile Number:</td>
+                <td style="padding: 8px 0; color: #1f2937;"><a href="tel:${phone}" style="color: #2563eb; text-decoration: none;">${phone}</a></td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Company/Organization:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${company || 'Not provided'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Country (Form):</td>
+                <td style="padding: 8px 0; color: #1f2937;">${country || 'Not provided'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Country (Detected):</td>
+                <td style="padding: 8px 0; color: #1f2937;">🌍 ${detectedCountry || 'Unknown'} (${countryCode || 'N/A'})</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">City:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${city || detectedCity || 'Not provided'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Region:</td>
+                <td style="padding: 8px 0; color: #1f2937;">${detectedRegion || 'Unknown'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Cookie Consent:</td>
+                <td style="padding: 8px 0; color: #1f2937;">✅ ${cookieConsent ? 'Yes - User accepted cookies' : 'No'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; color: #374151;">Submission Time:</td>
+                <td style="padding: 8px 0; color: #1f2937;">📅 ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1e40af; margin-top: 0;">🌐 System Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151; width: 140px;">IP Address:</td>
+                <td style="padding: 6px 0; color: #1f2937;">🌐 ${ipAddress || 'Unknown'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Browser Language:</td>
+                <td style="padding: 6px 0; color: #1f2937;">🗣️ ${language || browserLanguage || 'Unknown'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Timezone:</td>
+                <td style="padding: 6px 0; color: #1f2937;">⏰ ${timezone || 'Unknown'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Platform:</td>
+                <td style="padding: 6px 0; color: #1f2937;">💻 ${platform || 'Unknown'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Screen Resolution:</td>
+                <td style="padding: 6px 0; color: #1f2937;">📱 ${screenResolution || 'Unknown'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Viewport Size:</td>
+                <td style="padding: 6px 0; color: #1f2937;">📏 ${viewportSize || 'Unknown'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Referrer:</td>
+                <td style="padding: 6px 0; color: #1f2937;">🔗 ${referrer || 'Direct visit'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Page URL:</td>
+                <td style="padding: 6px 0; color: #1f2937;">🌐 ${pageUrl || 'Unknown'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Online Status:</td>
+                <td style="padding: 6px 0; color: #1f2937;">${onlineStatus ? '🟢 Online' : '🔴 Offline'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Geolocation:</td>
+                <td style="padding: 6px 0; color: #1f2937;">${isGeolocationEnabled ? '✅ Enabled' : '❌ Disabled'}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="background-color: #ffffff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1f2937; margin-top: 0;">💬 Message/Requirement</h3>
+            <p style="color: #374151; line-height: 1.6; margin: 0; background-color: #f9fafb; padding: 15px; border-radius: 6px;">${message}</p>
+          </div>
+
+          <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #22c55e;">
+            <h3 style="color: #15803d; margin-top: 0;">🎯 Action Items</h3>
+            <ul style="color: #374151; margin: 0; padding-left: 20px;">
+              <li>📞 <strong>Contact within 24 hours</strong> - Priority lead from ${detectedCountry || country}</li>
+              <li>📧 <strong>Reply directly</strong> to this email or use provided contact details</li>
+              <li>📝 <strong>Follow up</strong> on their specific requirements</li>
+              <li>💼 <strong>Convert lead</strong> - User has shown interest in Zebra products</li>
+              <li>🌍 <strong>Location context</strong> - Customer from ${detectedCountry || country} ${detectedCity ? `(${detectedCity})` : ''}</li>
+            </ul>
+          </div>
+          
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+          <p style="color: #6b7280; font-size: 12px; text-align: center; margin: 0;">
+            🚀 <strong>Automated Lead Capture System</strong><br>
+            📧 Support: gm@zebraprintersindia.com | 📞 +91 8800839490<br>
+            🕒 Submission ID: #${result.insertId} | 📅 ${formSubmissionTime || new Date().toISOString()}
+          </p>
+        </div>
+      `;
+      
+      // Email options
+      const mailOptions = {
+        from: '"Zebra Printers India Contact Form" <gm@indianbarcode.com>',
+        to: 'gm@indianbarcode.com',
+        replyTo: email,
+        subject: `🎉 New Lead: ${name} - ${company || 'Individual'} from ${country || 'Unknown Country'} | ${new Date().toLocaleDateString('en-IN')}`,
+        html: emailContent
+      };
+      
+      // Send email with retry logic
+      const sendEmailWithRetry = async (mailOptions, retries = 3) => {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+          try {
+            console.log(`📧 Sending contact form email (attempt ${attempt}/${retries})...`);
+            const info = await emailTransporter.sendMail(mailOptions);
+            console.log('✅ Contact form email sent successfully!');
+            console.log('📧 Message ID:', info.messageId);
+            console.log('📬 Response:', info.response);
+            return info;
+          } catch (emailError) {
+            console.error(`❌ Email attempt ${attempt} failed:`, emailError.message);
+            if (attempt === retries) {
+              throw emailError;
+            }
+            console.log(`⏳ Waiting 2 seconds before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+      };
+
+      try {
+        await sendEmailWithRetry(mailOptions);
+        console.log('🎉 Contact form submission completed successfully!');
+        res.json({ 
+          success: true, 
+          message: 'Thank you for your inquiry! We will contact you soon.',
+          submissionId: result.insertId
+        });
+      } catch (emailError) {
+        console.error('❌ Failed to send email after all retries:', emailError);
+        // Still return success since data was saved
+        res.json({ 
+          success: true, 
+          message: 'Your message has been received. We will contact you soon.',
+          submissionId: result.insertId,
+          warning: 'Email notification failed but your message was saved'
+        });
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Contact form submission error:', error);
+    res.status(500).json({ error: 'Internal server error. Please try again later.' });
+  }
+});
+
+// Enhanced contact form endpoint
+app.post('/api/contact/enhanced-submit', async (req, res) => {
+  try {
+    console.log('📝 Enhanced contact form submission received:', req.body);
+    
+    const { 
+      name, email, mobile, location, company, productService, message, cookieConsent
+    } = req.body;
+    
+    // Validate required fields
+    if (!name || !email || !mobile || !location || !productService || !message) {
+      console.log('Validation failed - missing required fields');
+      return res.status(400).json({ error: 'All required fields must be filled' });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.log('Validation failed - invalid email format');
+      return res.status(400).json({ error: 'Please enter a valid email address' });
+    }
+    
+    // Validate mobile number (10+ digits)
+    const mobileRegex = /^(\+?\d{1,3}[-.\s]?)?\d{10,}$/;
+    if (!mobileRegex.test(mobile.replace(/\s/g, ''))) {
+      console.log('Validation failed - invalid mobile number');
+      return res.status(400).json({ error: 'Mobile number must contain only digits and be at least 10 digits long' });
+    }
+
+    console.log('✅ All validations passed');
+    console.log('📝 Enhanced form data:', { name, email, mobile, location, company, productService, message, cookieConsent });
+
+    // Get client IP and user agent (server-side)
+    const serverIpAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
+    const serverUserAgent = req.get('User-Agent');
+    const timestamp = new Date().toISOString();
+    
+    // Insert into database (using the same contact_form table but with enhanced fields)
+    const insertQuery = `
+      INSERT INTO contact_form (name, email, mobile, company, city, message, country, ip_address, user_agent, cookie_consent, submission_timestamp)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    // Map enhanced form fields to database fields
+    const dbCity = location; // location maps to city in database
+    const dbMessage = `Product/Service: ${productService}\n\nMessage: ${message}`; // Combine product and message
+    const dbCountry = 'India'; // Default country
+    
+    db.query(insertQuery, [name, email, mobile, company, dbCity, dbMessage, dbCountry, serverIpAddress, serverUserAgent, cookieConsent, timestamp], async (err, result) => {
+      if (err) {
+        console.error('Database insert error:', err);
+        return res.status(500).json({ error: 'Failed to save contact form. Please try again.' });
+      }
+      
+      console.log('Enhanced contact form saved to database with ID:', result.insertId);
+      
+      // Prepare comprehensive email content
+      const emailContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
+            🚀 New Enhanced Contact Form Submission
+          </h2>
+          
+          <div style="background-color: #ffffff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1f2937; margin-top: 0;">👤 Customer Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151; width: 140px;">Name:</td>
+                <td style="padding: 6px 0; color: #1f2937;">${name}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Email:</td>
+                <td style="padding: 6px 0; color: #1f2937;">${email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Mobile:</td>
+                <td style="padding: 6px 0; color: #1f2937;">${mobile}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Location:</td>
+                <td style="padding: 6px 0; color: #1f2937;">${location}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Company:</td>
+                <td style="padding: 6px 0; color: #1f2937;">${company || 'Not provided'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; font-weight: bold; color: #374151;">Product/Service:</td>
+                <td style="padding: 6px 0; color: #1f2937; font-weight: bold; background-color: #dbeafe; padding: 4px 8px; border-radius: 4px;">${productService}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="background-color: #ffffff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1f2937; margin-top: 0;">💬 Message/Requirement</h3>
+            <p style="color: #374151; line-height: 1.6; margin: 0; background-color: #f9fafb; padding: 15px; border-radius: 6px;">${message}</p>
+          </div>
+
+          <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #22c55e;">
+            <h3 style="color: #15803d; margin-top: 0;">🎯 Action Items</h3>
+            <ul style="color: #374151; margin: 0; padding-left: 20px;">
+              <li>📞 <strong>Contact within 24 hours</strong> - Enhanced form submission from ${location}</li>
+              <li>📧 <strong>Reply directly</strong> to this email or use provided contact details</li>
+              <li>📝 <strong>Follow up</strong> on their specific requirements for ${productService}</li>
+              <li>💼 <strong>Convert lead</strong> - User has shown specific interest in ${productService}</li>
+              <li>🌍 <strong>Location context</strong> - Customer from ${location}</li>
+            </ul>
+          </div>
+          
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+          <p style="color: #6b7280; font-size: 12px; text-align: center; margin: 0;">
+            🚀 <strong>Enhanced Lead Capture System</strong><br>
+            📧 Support: gm@indianbarcode.com | 📞 +91 8800839490<br>
+            🕒 Submission ID: #${result.insertId} | 📅 ${timestamp}
+          </p>
+        </div>
+      `;
+      
+      // Email configuration
+      const mailOptions = {
+        from: process.env.EMAIL_FROM || 'noreply@zebraprintersindia.com',
+        to: 'gm@indianbarcode.com',
+        subject: `🚀 Enhanced Contact Form: ${name} - ${productService} Inquiry`,
+        html: emailContent
+      };
+
+      // Send email with retry logic
+      const sendEmailWithRetry = async (mailOptions, retries = 3) => {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+          try {
+            console.log(`📧 Sending enhanced contact form email (attempt ${attempt}/${retries})...`);
+            await emailTransporter.sendMail(mailOptions);
+            console.log('✅ Enhanced contact form email sent successfully!');
+            return;
+          } catch (emailError) {
+            console.error(`❌ Email attempt ${attempt} failed:`, emailError.message);
+            if (attempt === retries) {
+              throw emailError;
+            }
+            console.log(`⏳ Waiting 2 seconds before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+      };
+
+      try {
+        await sendEmailWithRetry(mailOptions);
+        console.log('🎉 Enhanced contact form submission completed successfully!');
+        res.json({ 
+          success: true, 
+          message: 'Thank you for your inquiry! We will contact you soon.',
+          submissionId: result.insertId
+        });
+      } catch (emailError) {
+        console.error('❌ Failed to send email after all retries:', emailError);
+        // Still return success since data was saved
+        res.json({ 
+          success: true, 
+          message: 'Your message has been received. We will contact you soon.',
+          submissionId: result.insertId,
+          warning: 'Email notification failed but your message was saved'
+        });
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Enhanced contact form submission error:', error);
+    res.status(500).json({ error: 'Internal server error. Please try again later.' });
+  }
+});
+
+// Get contact information endpoint
+app.get('/api/contact-info', (req, res) => {
+  try {
+    // Return static contact information
+    const contactInfo = [
+      { 
+        id: "1", 
+        type: "phone", 
+        title: "Sales Phone", 
+        value: "+91-8800839490", 
+        description: "Call us for sales inquiries", 
+        icon: "Phone", 
+        isActive: true, 
+        sortOrder: 1 
+      },
+      { 
+        id: "2", 
+        type: "phone", 
+        title: "Support Phone", 
+        value: "+91-8800122315", 
+        description: "Call us for technical support", 
+        icon: "Phone", 
+        isActive: true, 
+        sortOrder: 2 
+      },
+      { 
+        id: "3", 
+        type: "email", 
+        title: "General Email", 
+        value: "gm@zebraprintersindia.com", 
+        description: "Email us for general inquiries", 
+        icon: "Mail", 
+        isActive: true, 
+        sortOrder: 3 
+      },
+      { 
+        id: "4", 
+        type: "address", 
+        title: "Office Address", 
+        value: "MINDWARE, S-4, Plot No-7, Pocket-7, Pankaj Plaza, Near Metro Station, Sector-12, Dwarka, New Delhi-110078, India", 
+        description: "Visit our office for personalized consultation", 
+        icon: "MapPin", 
+        isActive: true, 
+        sortOrder: 4 
+      },
+      { 
+        id: "5", 
+        type: "social_media", 
+        title: "LinkedIn", 
+        value: "https://linkedin.com/company/indianbarcode", 
+        description: "Follow us on LinkedIn", 
+        icon: "Linkedin", 
+        isActive: true, 
+        sortOrder: 5 
+      },
+      { 
+        id: "6", 
+        type: "social_media", 
+        title: "Instagram", 
+        value: "https://instagram.com/indianbarcode", 
+        description: "Follow us on Instagram", 
+        icon: "Instagram", 
+        isActive: true, 
+        sortOrder: 6 
+      },
+      { 
+        id: "7", 
+        type: "social_media", 
+        title: "Facebook", 
+        value: "https://facebook.com/indianbarcode", 
+        description: "Follow us on Facebook", 
+        icon: "Facebook", 
+        isActive: true, 
+        sortOrder: 7 
+      },
+      { 
+        id: "8", 
+        type: "social_media", 
+        title: "Twitter", 
+        value: "https://twitter.com/indianbarcode", 
+        description: "Follow us on Twitter/X", 
+        icon: "Twitter", 
+        isActive: true, 
+        sortOrder: 8 
+      }
+    ];
+
+    res.json(contactInfo);
+  } catch (error) {
+    console.error('Error fetching contact info:', error);
+    res.status(500).json({ error: 'Failed to fetch contact information' });
+  }
+});
+
+// User tracking endpoints
+app.post('/api/tracking/interaction', async (req, res) => {
+  try {
+    const { action, data, timestamp, userAgent, url, pageTitle } = req.body;
+    const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
+    
+    // Insert tracking data into database
+    const insertQuery = `
+      INSERT INTO user_tracking (action, data, timestamp, user_agent, url, page_title, ip_address)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    db.query(insertQuery, [action, JSON.stringify(data), timestamp, userAgent, url, pageTitle, ipAddress], (err, result) => {
+      if (err) {
+        console.error('Error saving tracking data:', err);
+        return res.status(500).json({ error: 'Failed to save tracking data' });
+      }
+      
+      console.log('Tracking data saved:', { action, url, id: result.insertId });
+      res.json({ success: true, id: result.insertId });
+    });
+  } catch (error) {
+    console.error('Tracking endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get tracking data (for admin purposes)
+app.get('/api/tracking/data', (req, res) => {
+  try {
+    const query = `
+      SELECT action, data, timestamp, url, page_title, ip_address 
+      FROM user_tracking 
+      ORDER BY timestamp DESC 
+      LIMIT 100
+    `;
+    
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error('Error fetching tracking data:', err);
+        return res.status(500).json({ error: 'Failed to fetch tracking data' });
+      }
+      
+      res.json(results);
+    });
+  } catch (error) {
+    console.error('Get tracking data error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Clear tracking data
+app.delete('/api/tracking/clear', (req, res) => {
+  try {
+    const query = 'DELETE FROM user_tracking';
+    
+    db.query(query, (err, result) => {
+      if (err) {
+        console.error('Error clearing tracking data:', err);
+        return res.status(500).json({ error: 'Failed to clear tracking data' });
+      }
+      
+      console.log('Tracking data cleared:', result.affectedRows, 'records deleted');
+      res.json({ success: true, deletedCount: result.affectedRows });
+    });
+  } catch (error) {
+    console.error('Clear tracking data error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Send tracking summary email
+app.post('/api/tracking/send-summary', async (req, res) => {
+  try {
+    const { userName, mobile, email, pageUrl, timeSpent, interactionsCount } = req.body;
+    
+    // Insert into tracking_emails table
+    const insertQuery = `
+      INSERT INTO tracking_emails (user_name, mobile, email, page_url, time_spent, interactions_count, last_activity)
+      VALUES (?, ?, ?, ?, ?, ?, NOW())
+    `;
+    
+    db.query(insertQuery, [userName, mobile, email, pageUrl, timeSpent, interactionsCount], async (err, result) => {
+      if (err) {
+        console.error('Error saving tracking email data:', err);
+        return res.status(500).json({ error: 'Failed to save tracking data' });
+      }
+      
+      // Send email notification
+      const emailContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
+            User Tracking Summary - Website Analytics
+          </h2>
+          
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1f2937; margin-top: 0;">User Information</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 8px 0; font-weight: bold; color: #374151; width: 120px;">Name:</td><td style="padding: 8px 0; color: #1f2937;">${userName || 'Not provided'}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold; color: #374151;">Mobile:</td><td style="padding: 8px 0; color: #1f2937;">${mobile || 'Not provided'}</td></tr>
+              <tr><td style="padding: 8px 0; font-weight: bold; color: #374151;">Email:</td><td style="padding: 8px 0; color: #1f2937;">${email || 'Not provided'}</td></tr>
+            </table>
+          </div>
+          
+          <div style="background-color: #ffffff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1f2937; margin-top: 0;">Page Activity</h3>
+            <p style="color: #374151; margin: 5px 0;"><strong>Page URL:</strong> ${pageUrl}</p>
+            <p style="color: #374151; margin: 5px 0;"><strong>Time Spent:</strong> ${timeSpent} seconds</p>
+            <p style="color: #374151; margin: 5px 0;"><strong>Interactions:</strong> ${interactionsCount} actions</p>
+          </div>
+          
+          <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h4 style="color: #1e40af; margin-top: 0;">Tracking Details</h4>
+            <p style="color: #374151; margin: 5px 0;"><strong>Date & Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+            <p style="color: #374151; margin: 5px 0;"><strong>Tracking ID:</strong> ${result.insertId}</p>
+          </div>
+        </div>
+      `;
+
+      const mailOptions = {
+        from: '"Zebra Printers India Analytics" <gm@indianbarcode.com>',
+        to: 'gm@indianbarcode.com',
+        subject: 'User Tracking Summary - Website Analytics',
+        text: `
+User Tracking Summary - Website Analytics
+
+User Information:
+- Name: ${userName || 'Not provided'}
+- Mobile: ${mobile || 'Not provided'}
+- Email: ${email || 'Not provided'}
+
+Page Activity:
+- Page URL: ${pageUrl}
+- Time Spent: ${timeSpent} seconds
+- Interactions: ${interactionsCount} actions
+
+Tracking Details:
+- Date & Time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+- Tracking ID: ${result.insertId}
+
+Best regards,
+Zebra Printers India Analytics System
+        `,
+        html: emailContent
+      };
+
+      try {
+        await emailTransporter.sendMail(mailOptions);
+        console.log('Tracking summary email sent successfully');
+        
+        // Update email_sent status
+        db.query('UPDATE tracking_emails SET email_sent = TRUE WHERE id = ?', [result.insertId]);
+        
+        res.json({ success: true, message: 'Tracking summary sent successfully' });
+      } catch (emailError) {
+        console.error('Error sending tracking email:', emailError);
+        res.status(500).json({ error: 'Failed to send tracking email' });
+      }
+    });
+  } catch (error) {
+    console.error('Send tracking summary error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Create driver
 app.post('/api/drivers', upload.single('file'), (req, res) => {
   try {
+    console.log('Creating driver with data:', req.body);
+    console.log('File received:', req.file);
+    
     const { name, version, category, operatingSystem, description, compatibility } = req.body;
     const file = req.file;
     
     if (!file) {
+      console.log('No file received');
       return res.status(400).json({ error: 'Driver file is required' });
     }
 
-    const filePath = `/uploads/drivers/${file.filename}`;
-    const downloadUrl = `/downloads/${file.filename}`;
-    const fileSize = file.size;
+    // Ensure uploads/drivers directory exists
+    const driversDir = path.join(__dirname, 'uploads', 'drivers');
+    if (!fs.existsSync(driversDir)) {
+      fs.mkdirSync(driversDir, { recursive: true });
+      console.log('Created uploads/drivers directory');
+    }
 
-    const query = `INSERT INTO drivers (name, version, category, operating_system, description, compatibility, file_name, file_path, file_size, download_url, release_date)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    
-    const values = [
-      name,
-      version,
-      category,
-      operatingSystem,
-      description,
-      compatibility,
-      file.originalname,
-      filePath,
-      fileSize,
-      downloadUrl,
-      new Date().toISOString().split('T')[0]
-    ];
-
-    db.query(query, values, (err, results) => {
+    // First check if drivers table exists
+    const checkTableQuery = 'SHOW TABLES LIKE "drivers"';
+    db.query(checkTableQuery, (err, results) => {
       if (err) {
-        console.error('Database error:', err);
-        res.status(500).json({ error: 'Failed to create driver' });
-      } else {
-        res.json({ 
-          message: 'Driver created successfully',
-          id: results.insertId 
+        console.error('Error checking drivers table:', err);
+        return res.status(500).json({ 
+          error: 'Database error', 
+          details: err.message 
         });
       }
+      
+      if (results.length === 0) {
+        console.error('Drivers table does not exist');
+        return res.status(500).json({ 
+          error: 'Drivers table does not exist. Please run database setup first.' 
+        });
+      }
+      
+      // Table exists, proceed with creation
+      createDriverRecord();
     });
+
+    function createDriverRecord() {
+      // No file size restrictions for drivers
+      const downloadUrl = `/downloads/${file.filename}`;
+      const fileSize = file.size;
+
+      const query = `INSERT INTO drivers (name, version, category, operating_system, description, compatibility, file_name, file_path, file_size, download_url, release_date)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      
+      const filePath = `/uploads/drivers/${file.filename}`;
+      const values = [
+        name,
+        version,
+        category,
+        operatingSystem,
+        description,
+        compatibility,
+        file.originalname,
+        filePath,
+        fileSize,
+        downloadUrl,
+        new Date().toISOString().split('T')[0]
+      ];
+
+      console.log('Executing query with values:', values);
+
+      db.query(query, values, (err, results) => {
+        if (err) {
+          console.error('Database error:', err);
+          console.error('Query:', query);
+          console.error('Values:', values);
+          res.status(500).json({ 
+            error: 'Failed to create driver',
+            details: err.message,
+            sqlState: err.sqlState,
+            errno: err.errno
+          });
+        } else {
+          console.log('Driver created successfully with ID:', results.insertId);
+          res.json({ 
+            success: true,
+            message: 'Driver created successfully',
+            id: results.insertId 
+          });
+        }
+      });
+    }
   } catch (error) {
     console.error('Error creating driver:', error);
-    res.status(500).json({ error: 'Failed to create driver' });
+    res.status(500).json({ 
+      error: 'Failed to create driver',
+      details: error.message 
+    });
   }
 });
 
@@ -1626,6 +3559,268 @@ app.delete('/api/drivers/:id', (req, res) => {
     } else {
       res.json({ message: 'Driver deleted successfully' });
     }
+  });
+});
+
+// Download request endpoint
+app.post('/api/drivers/download-request', upload.single('receipt'), async (req, res) => {
+  try {
+    console.log('Download request received:', req.body);
+    console.log('Receipt file:', req.file);
+    
+    const { driverId, driverName, fullName, companyName, address, mobileNumber, purpose, email } = req.body;
+    const receiptFile = req.file;
+
+    // Validate required fields
+    if (!fullName || !companyName || !address || !mobileNumber || !purpose || !email) {
+      console.log('Validation failed - missing fields');
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Validate receipt file is mandatory
+    if (!receiptFile) {
+      console.log('Validation failed - no receipt file');
+      return res.status(400).json({ error: 'Purchase receipt/document is required' });
+    }
+
+    // Get driver details from database
+    const driverQuery = 'SELECT * FROM drivers WHERE id = ?';
+    db.query(driverQuery, [driverId], async (err, driverResults) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Failed to get driver details' });
+      }
+
+      if (driverResults.length === 0) {
+        return res.status(404).json({ error: 'Driver not found' });
+      }
+
+      const driver = driverResults[0];
+
+      // Prepare email content matching your working format
+      const emailContent = `
+        <p>Dear Sir,</p>
+        
+        <p><strong>New Driver Download Request Received from Zebra Printers India Website.</strong></p>
+        
+        <h3>Driver Details:</h3>
+        <ul>
+          <li><strong>Driver Name:</strong> ${driver.name}</li>
+          <li><strong>Version:</strong> ${driver.version}</li>
+          <li><strong>Category:</strong> ${driver.category}</li>
+          <li><strong>Operating System:</strong> ${driver.operating_system}</li>
+          <li><strong>File Size:</strong> ${driver.file_size ? (driver.file_size / (1024 * 1024)).toFixed(2) + ' MB' : 'N/A'}</li>
+        </ul>
+
+        <h3>Customer Details:</h3>
+        <ul>
+          <li><strong>Full Name:</strong> ${fullName}</li>
+          <li><strong>Company Name:</strong> ${companyName}</li>
+          <li><strong>Address:</strong> ${address}</li>
+          <li><strong>Mobile Number:</strong> ${mobileNumber}</li>
+          <li><strong>Email:</strong> ${email}</li>
+          <li><strong>Purpose:</strong> ${purpose}</li>
+        </ul>
+
+        <h3>Download Information:</h3>
+        <p><strong>Download URL:</strong> ${req.protocol}://${req.get('host')}/api/drivers/${driverId}/download</p>
+        <p><strong>Request Time:</strong> ${new Date().toLocaleString()}</p>
+        
+        <p>Please process this request and contact the customer if needed.</p>
+        
+        <p>Best regards,<br>Zebra Printers India System</p>
+      `;
+
+      // Email options using Gmail
+      const mailOptions = {
+        from: '"Zebra Printers India" <gm@indianbarcode.com>',
+        to: 'gm@indianbarcode.com',
+        replyTo: email,
+        subject: 'Notification From Indian Barcode Admin Panel',
+        text: `
+Dear Sir,
+
+New Driver Download Request Received from Zebra Printers India Website.
+
+Driver Details:
+- Driver Name: ${driver.name}
+- Version: ${driver.version}
+- Category: ${driver.category}
+- Operating System: ${driver.operating_system}
+
+Customer Details:
+- Full Name: ${fullName}
+- Company Name: ${companyName}
+- Address: ${address}
+- Mobile Number: ${mobileNumber}
+- Email: ${email}
+- Purpose: ${purpose}
+
+Download Information:
+- Download URL: ${req.protocol}://${req.get('host')}/api/drivers/${driverId}/download
+- Request Time: ${new Date().toLocaleString()}
+
+Please process this request and contact the customer if needed.
+
+Best regards,
+Zebra Printers India System
+        `,
+        html: emailContent,
+        attachments: receiptFile ? [{
+          filename: receiptFile.originalname,
+          path: receiptFile.path
+        }] : []
+      };
+
+      // Enhanced email sending with retry logic
+      const sendEmailWithRetry = async (mailOptions, retries = 3) => {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+          try {
+            console.log(`📧 Sending email (attempt ${attempt}/${retries})...`);
+            const info = await emailTransporter.sendMail(mailOptions);
+            console.log('✅ Download request email sent successfully!');
+            console.log('📧 Message ID:', info.messageId);
+            console.log('📬 Response:', info.response);
+            return info;
+          } catch (emailError) {
+            console.error(`❌ Email attempt ${attempt} failed:`, emailError.message);
+            if (attempt === retries) {
+              throw emailError;
+            }
+            console.log(`⏳ Waiting 2 seconds before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
+      };
+
+      // Log form data to file as backup
+      const formDataLog = {
+        timestamp: new Date().toLocaleString(),
+        driverId,
+        driverName: driver.name,
+        fullName,
+        companyName,
+        address,
+        mobileNumber,
+        purpose,
+        email,
+        receiptFile: receiptFile ? {
+          originalname: receiptFile.originalname,
+          filename: receiptFile.filename,
+          size: receiptFile.size
+        } : null
+      };
+      
+      // Write to log file
+      const logEntry = `\n=== FORM SUBMISSION - ${new Date().toLocaleString()} ===\n${JSON.stringify(formDataLog, null, 2)}\n`;
+      fs.appendFileSync('form_submissions.log', logEntry);
+      console.log('📝 Form data logged to form_submissions.log');
+      
+      // Also create a simple readable file
+      const simpleLogEntry = `
+========================================
+FORM SUBMISSION - ${new Date().toLocaleString()}
+========================================
+Driver ID: ${driverId}
+Driver Name: ${driver.name}
+Full Name: ${fullName}
+Company Name: ${companyName}
+Address: ${address}
+Mobile Number: ${mobileNumber}
+Email: ${email}
+Purpose: ${purpose}
+Receipt File: ${receiptFile ? receiptFile.originalname : 'None'}
+========================================
+
+`;
+      fs.appendFileSync('form_data_simple.txt', simpleLogEntry);
+      console.log('📝 Form data also saved to form_data_simple.txt');
+
+      try {
+        // Send email with retry logic
+        await sendEmailWithRetry(mailOptions);
+
+        // Send confirmation email to customer
+        const customerMailOptions = {
+          from: '"Zebra Printers India" <gm@indianbarcode.com>',
+          to: email,
+          subject: `✅ Download Confirmation - ${driver.name}`,
+          html: `
+            <h2>Download Request Confirmed</h2>
+            <p>Dear ${fullName},</p>
+            <p>Thank you for your download request for <strong>${driver.name}</strong>.</p>
+            <p>Your request has been processed and you can now download the driver.</p>
+            <p>If you have any questions, please contact us at gm@indianbarcode.com</p>
+            <p>Best regards,<br>Zebra Printers India Team</p>
+          `,
+          headers: {
+            'X-Mailer': 'Zebra Printers India System'
+          }
+        };
+
+        await sendEmailWithRetry(customerMailOptions);
+        console.log('✅ Confirmation email sent to customer');
+
+        res.json({ 
+          success: true, 
+          message: 'Download request submitted successfully',
+          downloadUrl: `/api/drivers/${driverId}/download`
+        });
+
+      } catch (emailError) {
+        console.error('Email error details:', {
+          message: emailError.message,
+          code: emailError.code,
+          response: emailError.response,
+          command: emailError.command
+        });
+        
+        // Still allow download even if email fails
+        res.json({ 
+          success: true, 
+          message: 'Download request submitted successfully! Check your email for confirmation.',
+          downloadUrl: `/api/drivers/${driverId}/download`,
+          emailNote: 'Email notification failed - please check server logs'
+        });
+      }
+    });
+
+  } catch (error) {
+    console.error('Error processing download request:', error);
+    res.status(500).json({ error: 'Failed to process download request' });
+  }
+});
+
+// Download driver file endpoint
+app.get('/api/drivers/:id/download', (req, res) => {
+  const { id } = req.params;
+  const query = 'SELECT * FROM drivers WHERE id = ?';
+  
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Failed to get driver details' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    const driver = results[0];
+    const filePath = path.join(__dirname, 'uploads', 'drivers', driver.file_name);
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Driver file not found' });
+    }
+
+    // Set headers for file download
+    res.setHeader('Content-Disposition', `attachment; filename="${driver.file_name}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
   });
 });
 
@@ -1801,6 +3996,25 @@ app.use((error, req, res, next) => {
   // If response was already sent, delegate to default Express error handler
   if (res.headersSent) {
     return next(error);
+  }
+  
+  // Handle multer errors specifically
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ 
+      error: 'File too large', 
+      message: 'File size exceeds the maximum limit of 1GB',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+    return res.status(400).json({ 
+      error: 'Unexpected file field', 
+      message: 'Unexpected file field in upload',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
   
   // Always return JSON response
@@ -2073,7 +4287,7 @@ app.get('/api/jobs', (req, res) => {
             title: 'Product Manager',
             slug: 'product-manager',
             company: 'Zebra Technologies',
-            location: 'Mumbai, India',
+            location: 'New Delhi, India',
             job_type: 'Full-time',
             experience_level: 'Mid-level',
             salary_range: '₹12,00,000 - ₹18,00,000',
@@ -2434,32 +4648,32 @@ app.get('/api/location-seo-by-slug/:citySlug', (req, res) => {
         console.log('Database not available, returning sample SEO data');
         const sampleData = {
           location: {
-            id: 859,
-            city: 'Mumbai',
-            state: 'Maharashtra',
+            id: 18,
+            city: 'New Delhi',
+            state: 'Delhi',
             country: 'India',
             country_code: 'IN'
           },
           seo: {
-            title: `Zebra Barcode Printers in Mumbai, Maharashtra | Zebra Printers India`,
-            description: `Leading supplier of Zebra barcode printers, scanners, and mobile computers in Mumbai, Maharashtra. Get expert support and service for all your barcode printing needs.`,
-            keywords: `Zebra barcode printers Mumbai, barcode scanners Maharashtra, mobile computers Mumbai, label printers India, RFID solutions Mumbai, Zebra printer service Mumbai`,
-            h1: `Zebra Barcode Printers in Mumbai, Maharashtra`,
-            h2: `Professional Barcode Solutions for Mumbai Businesses`,
+            title: `Zebra Barcode Printers in New Delhi, Delhi | Zebra Printers India`,
+            description: `Leading supplier of Zebra barcode printers, scanners, and mobile computers in New Delhi, Delhi. Get expert support and service for all your barcode printing needs.`,
+            keywords: `Zebra barcode printers New Delhi, barcode scanners Delhi, mobile computers New Delhi, label printers India, RFID solutions New Delhi, Zebra printer service New Delhi`,
+            h1: `Zebra Barcode Printers in New Delhi, Delhi`,
+            h2: `Professional Barcode Solutions for New Delhi Businesses`,
             structured_data: {
               "@context": "https://schema.org",
               "@type": "LocalBusiness",
-              "name": "Zebra Printers India - Mumbai",
-              "description": "Leading supplier of Zebra barcode printers and solutions in Mumbai, Maharashtra",
+              "name": "Zebra Printers India - New Delhi",
+              "description": "Leading supplier of Zebra barcode printers and solutions in New Delhi, Delhi",
               "address": {
                 "@type": "PostalAddress",
-                "addressLocality": "Mumbai",
-                "addressRegion": "Maharashtra",
+                "addressLocality": "New Delhi",
+                "addressRegion": "Delhi",
                 "addressCountry": "India"
               },
               "areaServed": {
                 "@type": "City",
-                "name": "Mumbai"
+                "name": "New Delhi"
               },
               "serviceType": "Barcode Printers, Scanners, Mobile Computers"
             }
@@ -2540,31 +4754,31 @@ app.get('/api/location-seo/:locationId', (req, res) => {
         const sampleData = {
           location: {
             id: locationId,
-            city: 'Mumbai',
-            state: 'Maharashtra',
+            city: 'New Delhi',
+            state: 'Delhi',
             country: 'India',
             country_code: 'IN'
           },
           seo: {
-            title: `Zebra Barcode Printers in Mumbai, Maharashtra | Zebra Printers India`,
-            description: `Leading supplier of Zebra barcode printers, scanners, and mobile computers in Mumbai, Maharashtra. Get expert support and service for all your barcode printing needs.`,
-            keywords: `Zebra barcode printers Mumbai, barcode scanners Maharashtra, mobile computers Mumbai, label printers India, RFID solutions Mumbai, Zebra printer service Mumbai`,
-            h1: `Zebra Barcode Printers in Mumbai, Maharashtra`,
-            h2: `Professional Barcode Solutions for Mumbai Businesses`,
+            title: `Zebra Barcode Printers in New Delhi, Delhi | Zebra Printers India`,
+            description: `Leading supplier of Zebra barcode printers, scanners, and mobile computers in New Delhi, Delhi. Get expert support and service for all your barcode printing needs.`,
+            keywords: `Zebra barcode printers New Delhi, barcode scanners Delhi, mobile computers New Delhi, label printers India, RFID solutions New Delhi, Zebra printer service New Delhi`,
+            h1: `Zebra Barcode Printers in New Delhi, Delhi`,
+            h2: `Professional Barcode Solutions for New Delhi Businesses`,
             structured_data: {
               "@context": "https://schema.org",
               "@type": "LocalBusiness",
-              "name": "Zebra Printers India - Mumbai",
-              "description": "Leading supplier of Zebra barcode printers and solutions in Mumbai, Maharashtra",
+              "name": "Zebra Printers India - New Delhi",
+              "description": "Leading supplier of Zebra barcode printers and solutions in New Delhi, Delhi",
               "address": {
                 "@type": "PostalAddress",
-                "addressLocality": "Mumbai",
-                "addressRegion": "Maharashtra",
+                "addressLocality": "New Delhi",
+                "addressRegion": "Delhi",
                 "addressCountry": "India"
               },
               "areaServed": {
                 "@type": "City",
-                "name": "Mumbai"
+                "name": "New Delhi"
               },
               "serviceType": "Barcode Printers, Scanners, Mobile Computers"
             }
@@ -2645,22 +4859,22 @@ app.get('/api/location-content/:locationId', (req, res) => {
         const sampleData = {
           location: {
             id: locationId,
-            city: 'Mumbai',
-            state: 'Maharashtra',
+            city: 'New Delhi',
+            state: 'Delhi',
             country: 'India',
             country_code: 'IN'
           },
           content: {
-            banner_title: `Zebra Barcode Solutions in Mumbai`,
-            banner_subtitle: `Serving ${locationId === '859' ? 'Mumbai' : 'your city'} with premium barcode printing technology`,
-            hero_title: `Professional Barcode Printers in Mumbai, Maharashtra`,
-            hero_subtitle: `Transform your business operations with our cutting-edge Zebra barcode printing solutions designed for Mumbai's dynamic business environment.`,
-            services_title: `Our Services in Mumbai`,
-            services_subtitle: `Comprehensive barcode solutions tailored for Mumbai businesses`,
-            contact_title: `Get in Touch - Mumbai Office`,
-            contact_subtitle: `Ready to upgrade your barcode printing system? Contact our Mumbai team today.`,
-            testimonials_title: `What Mumbai Businesses Say`,
-            testimonials_subtitle: `Hear from satisfied customers across Mumbai and Maharashtra`
+            banner_title: `Zebra Barcode Solutions in New Delhi`,
+            banner_subtitle: `Serving ${locationId === '859' ? 'New Delhi' : 'your city'} with premium barcode printing technology`,
+            hero_title: `Professional Barcode Printers in New Delhi, Delhi`,
+            hero_subtitle: `Transform your business operations with our cutting-edge Zebra barcode printing solutions designed for New Delhi's dynamic business environment.`,
+            services_title: `Our Services in New Delhi`,
+            services_subtitle: `Comprehensive barcode solutions tailored for New Delhi businesses`,
+            contact_title: `Get in Touch - New Delhi Office`,
+            contact_subtitle: `Ready to upgrade your barcode printing system? Contact our New Delhi team today.`,
+            testimonials_title: `What New Delhi Businesses Say`,
+            testimonials_subtitle: `Hear from satisfied customers across New Delhi and Delhi`
           }
         };
         res.json(sampleData);
@@ -2700,6 +4914,295 @@ app.get('/api/location-content/:locationId', (req, res) => {
   });
 });
 
+// ==================== DYNAMIC SCHEMA API ====================
+// Test endpoint to verify API is working
+app.get('/api/schema/test', (req, res) => {
+  res.json({ 
+    message: 'Dynamic Schema API is working!', 
+    timestamp: new Date().toISOString(),
+    status: 'success'
+  });
+});
+
+// Get latest content for dynamic schema generation
+app.get('/api/schema/latest-content', (req, res) => {
+  console.log('📡 Schema API called: /api/schema/latest-content');
+  const { limit = 5 } = req.query;
+  const limitNum = parseInt(limit);
+  
+  console.log('📊 Fetching latest content with limit:', limitNum);
+
+  // Fetch latest blogs
+  const blogsQuery = `
+    SELECT id, title, slug, excerpt, featured_image, author, category, tags, created_at, updated_at
+    FROM blogs 
+    WHERE status = 'published' 
+    ORDER BY created_at DESC 
+    LIMIT ?
+  `;
+
+  // Fetch latest jobs
+  const jobsQuery = `
+    SELECT id, title, slug, company, location, job_type, experience_level, salary_range, description, created_at, updated_at
+    FROM jobs 
+    WHERE status = 'active' 
+    ORDER BY created_at DESC 
+    LIMIT ?
+  `;
+
+  // Fetch latest products
+  const productsQuery = `
+    SELECT id, name, slug, description, image, category, sku, model_number, created_at, updated_at
+    FROM products 
+    WHERE status = 'active' 
+    ORDER BY created_at DESC 
+    LIMIT ?
+  `;
+
+  // Check if database is available
+  if (!db) {
+    console.log('⚠️ Database not available, returning sample data');
+    const sampleData = {
+      blogs: [
+        {
+          id: 1,
+          title: "The Future of Barcode Technology in 2024",
+          slug: "future-barcode-technology-2024",
+          excerpt: "Explore the latest trends and innovations in barcode technology",
+          featured_image: "/api/placeholder/800/400",
+          author: "John Smith",
+          category: "Technology",
+          tags: ["barcode", "technology", "innovation"],
+          created_at: "2024-01-15T10:00:00Z",
+          updated_at: "2024-01-15T10:00:00Z"
+        }
+      ],
+      jobs: [
+        {
+          id: 1,
+          title: "Senior Barcode Solutions Engineer",
+          slug: "senior-barcode-solutions-engineer",
+          company: "Zebra Printers India",
+          location: "New Delhi",
+          job_type: "full-time",
+          experience_level: "senior",
+          salary_range: "₹8,00,000 - ₹12,00,000",
+          description: "Lead technical solutions for barcode technology implementations",
+          created_at: "2024-01-15T10:00:00Z",
+          updated_at: "2024-01-15T10:00:00Z"
+        }
+      ],
+      products: [
+        {
+          id: 1,
+          name: "Zebra ZT411 Industrial Printer",
+          slug: "zebra-zt411-industrial-printer",
+          description: "High-performance industrial barcode printer for demanding environments",
+          image: "/api/placeholder/400/400",
+          category: "Industrial Printers",
+          price: "Contact for Price",
+          sku: "ZT411-203-000",
+          model_number: "ZT411",
+          created_at: "2024-01-15T10:00:00Z",
+          updated_at: "2024-01-15T10:00:00Z"
+        }
+      ],
+      generated_at: new Date().toISOString()
+    };
+    return res.json(sampleData);
+  }
+
+  // Execute all queries in parallel
+  Promise.all([
+    new Promise((resolve, reject) => {
+      db.query(blogsQuery, [limitNum], (err, results) => {
+        if (err) {
+          console.error('Blogs query error:', err);
+          resolve([]); // Return empty array on error
+        } else {
+          resolve(results);
+        }
+      });
+    }),
+    new Promise((resolve, reject) => {
+      db.query(jobsQuery, [limitNum], (err, results) => {
+        if (err) {
+          console.error('Jobs query error:', err);
+          resolve([]); // Return empty array on error
+        } else {
+          resolve(results);
+        }
+      });
+    }),
+    new Promise((resolve, reject) => {
+      db.query(productsQuery, [limitNum], (err, results) => {
+        if (err) {
+          console.error('Products query error:', err);
+          resolve([]); // Return empty array on error
+        } else {
+          resolve(results);
+        }
+      });
+    })
+  ]).then(([blogs, jobs, products]) => {
+    console.log('✅ Successfully fetched content:', { blogs: blogs.length, jobs: jobs.length, products: products.length });
+    res.json({
+      blogs,
+      jobs,
+      products,
+      generated_at: new Date().toISOString()
+    });
+  }).catch(error => {
+    console.error('Error fetching latest content:', error);
+    res.status(500).json({ error: 'Failed to fetch latest content' });
+  });
+});
+
+// Get schema data for specific content type
+app.get('/api/schema/:contentType', (req, res) => {
+  const { contentType } = req.params;
+  const { id, slug, limit = 10 } = req.query;
+
+  let query, params;
+
+  switch (contentType) {
+    case 'blog':
+      if (id) {
+        query = 'SELECT * FROM blogs WHERE id = ?';
+        params = [id];
+      } else if (slug) {
+        query = 'SELECT * FROM blogs WHERE slug = ?';
+        params = [slug];
+      } else {
+        query = 'SELECT * FROM blogs WHERE status = "published" ORDER BY created_at DESC LIMIT ?';
+        params = [parseInt(limit)];
+      }
+      break;
+    
+    case 'job':
+      if (id) {
+        query = 'SELECT * FROM jobs WHERE id = ?';
+        params = [id];
+      } else if (slug) {
+        query = 'SELECT * FROM jobs WHERE slug = ?';
+        params = [slug];
+      } else {
+        query = 'SELECT * FROM jobs WHERE status = "active" ORDER BY created_at DESC LIMIT ?';
+        params = [parseInt(limit)];
+      }
+      break;
+    
+    case 'product':
+      if (id) {
+        query = 'SELECT * FROM products WHERE id = ?';
+        params = [id];
+      } else if (slug) {
+        query = 'SELECT * FROM products WHERE slug = ?';
+        params = [slug];
+      } else {
+        query = 'SELECT * FROM products WHERE status = "active" ORDER BY created_at DESC LIMIT ?';
+        params = [parseInt(limit)];
+      }
+      break;
+    
+    default:
+      return res.status(400).json({ error: 'Invalid content type. Use: blog, job, or product' });
+  }
+
+  db.query(query, params, (err, results) => {
+    if (err) {
+      console.error(`${contentType} query error:`, err);
+      res.status(500).json({ error: `Failed to fetch ${contentType} data` });
+    } else {
+      res.json({
+        contentType,
+        data: results,
+        count: results.length,
+        generated_at: new Date().toISOString()
+      });
+    }
+  });
+});
+
+// Get breadcrumb data for navigation
+app.get('/api/schema/breadcrumbs/:path', (req, res) => {
+  const { path: urlPath } = req.params;
+  
+  // Parse the URL path to generate breadcrumbs
+  const pathSegments = urlPath.split('/').filter(segment => segment);
+  const breadcrumbs = [
+    { name: 'Home', url: 'https://zebraprintersindia.com' }
+  ];
+
+  let currentPath = 'https://zebraprintersindia.com';
+  
+  pathSegments.forEach((segment, index) => {
+    currentPath += `/${segment}`;
+    
+    // Map segments to readable names
+    let name = segment;
+    switch (segment) {
+      case 'products':
+        name = 'Products';
+        break;
+      case 'blogs':
+        name = 'Blogs';
+        break;
+      case 'jobs':
+        name = 'Careers';
+        break;
+      case 'about':
+        name = 'About Us';
+        break;
+      case 'contact':
+        name = 'Contact';
+        break;
+      case 'service':
+        name = 'Service & Support';
+        break;
+      default:
+        // Try to get name from database if it's a slug
+        name = segment.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+    
+    breadcrumbs.push({ name, url: currentPath });
+  });
+
+  res.json({
+    breadcrumbs,
+    generated_at: new Date().toISOString()
+  });
+});
+
+// Get FAQ data for schema
+app.get('/api/schema/faqs', (req, res) => {
+  const { category, limit = 10 } = req.query;
+  
+  let query = 'SELECT * FROM faqs WHERE status = "active"';
+  let params = [];
+  
+  if (category) {
+    query += ' AND category = ?';
+    params.push(category);
+  }
+  
+  query += ' ORDER BY sort_order ASC, created_at DESC LIMIT ?';
+  params.push(parseInt(limit));
+
+  db.query(query, params, (err, results) => {
+    if (err) {
+      console.error('FAQ query error:', err);
+      res.status(500).json({ error: 'Failed to fetch FAQ data' });
+    } else {
+      res.json({
+        faqs: results,
+        count: results.length,
+        generated_at: new Date().toISOString()
+      });
+    }
+  });
+});
+
 // ==================== NETWORK API ====================
 // Get all locations for network page
 app.get('/api/network/all-locations', (req, res) => {
@@ -2734,9 +5237,9 @@ app.get('/api/network/all-locations', (req, res) => {
           { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 3, state_name: 'Tamil Nadu', city_id: 6, city_name: 'Coimbatore' },
           { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 4, state_name: 'Kerala', city_id: 7, city_name: 'Kochi' },
           { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 4, state_name: 'Kerala', city_id: 8, city_name: 'Thiruvananthapuram' },
-          { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 5, state_name: 'Maharashtra', city_id: 9, city_name: 'Mumbai' },
-          { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 5, state_name: 'Maharashtra', city_id: 10, city_name: 'Pune' },
-          { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 5, state_name: 'Maharashtra', city_id: 11, city_name: 'Nagpur' },
+          { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 5, state_name: 'Delhi', city_id: 9, city_name: 'New Delhi' },
+          { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 5, state_name: 'Delhi', city_id: 10, city_name: 'Pune' },
+          { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 5, state_name: 'Delhi', city_id: 11, city_name: 'Nagpur' },
           { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 6, state_name: 'Gujarat', city_id: 12, city_name: 'Ahmedabad' },
           { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 6, state_name: 'Gujarat', city_id: 13, city_name: 'Surat' },
           { country_id: 101, country_name: 'India', country_code: 'IN', state_id: 7, state_name: 'Rajasthan', city_id: 14, city_name: 'Jaipur' },
@@ -2911,7 +5414,7 @@ app.get('/api/locations/states/:countryId', (req, res) => {
         const sampleStates = {
           1: [ // India
             { id: 1, name: 'Delhi', country_id: 1, country: 'India' },
-            { id: 2, name: 'Maharashtra', country_id: 1, country: 'India' },
+            { id: 2, name: 'Delhi', country_id: 1, country: 'India' },
             { id: 3, name: 'Karnataka', country_id: 1, country: 'India' },
             { id: 4, name: 'Tamil Nadu', country_id: 1, country: 'India' },
             { id: 5, name: 'Gujarat', country_id: 1, country: 'India' }
@@ -2945,11 +5448,11 @@ app.get('/api/locations/cities/:stateId', (req, res) => {
       if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED' || err.code === 'ER_ACCESS_DENIED_ERROR') {
         console.log('Database not available, returning sample cities data');
         const sampleCities = [
-          { id: 1, state: 'Maharashtra', city: 'Mumbai' },
-          { id: 2, state: 'Maharashtra', city: 'Pune' },
-          { id: 3, state: 'Maharashtra', city: 'Nagpur' },
-          { id: 4, state: 'Maharashtra', city: 'Nashik' },
-          { id: 5, state: 'Maharashtra', city: 'Aurangabad' }
+          { id: 1, state: 'Delhi', city: 'New Delhi' },
+          { id: 2, state: 'Delhi', city: 'Pune' },
+          { id: 3, state: 'Delhi', city: 'Nagpur' },
+          { id: 4, state: 'Delhi', city: 'Nashik' },
+          { id: 5, state: 'Delhi', city: 'Aurangabad' }
         ];
         res.json(sampleCities);
         return;
@@ -2975,9 +5478,9 @@ app.get('/api/locations/cities/:stateId', (req, res) => {
           1: [ // Delhi
             { id: 1, name: 'New Delhi', state_id: 1, state: 'Delhi', country: 'India' }
           ],
-          2: [ // Maharashtra
-            { id: 2, name: 'Mumbai', state_id: 2, state: 'Maharashtra', country: 'India' },
-            { id: 3, name: 'Pune', state_id: 2, state: 'Maharashtra', country: 'India' }
+          2: [ // Delhi
+            { id: 2, name: 'New Delhi', state_id: 2, state: 'Delhi', country: 'India' },
+            { id: 3, name: 'Pune', state_id: 2, state: 'Delhi', country: 'India' }
           ],
           3: [ // Karnataka
             { id: 4, name: 'Bangalore', state_id: 3, state: 'Karnataka', country: 'India' }
@@ -3088,7 +5591,7 @@ app.get('/api/locations/search', (req, res) => {
         console.log('Database not available, returning sample search results');
         const sampleResults = [
           { id: 1, name: 'New Delhi', state: 'Delhi', country: 'India', type: 'city' },
-          { id: 2, name: 'Mumbai', state: 'Maharashtra', country: 'India', type: 'city' },
+          { id: 2, name: 'New Delhi', state: 'Delhi', country: 'India', type: 'city' },
           { id: 3, name: 'Bangalore', state: 'Karnataka', country: 'India', type: 'city' }
         ];
         return res.json(sampleResults);
@@ -3100,8 +5603,81 @@ app.get('/api/locations/search', (req, res) => {
   });
 });
 
+// Sitemap generation route
+app.get('/generate-sitemap', async (req, res) => {
+  try {
+    console.log('🔄 Manual sitemap generation requested...');
+    const generator = new SitemapGenerator();
+    
+    await generator.generateSitemaps();
+    generator.closeConnection();
+    
+    res.json({ 
+      success: true, 
+      message: 'Sitemap generated successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error generating sitemap:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to generate sitemap',
+      message: error.message 
+    });
+  }
+});
+
+// Serve main sitemap.xml (single consolidated sitemap)
+app.get('/sitemap.xml', (req, res) => {
+  const sitemapPath = path.join(__dirname, 'public', 'sitemap.xml');
+  
+  if (fs.existsSync(sitemapPath)) {
+    res.setHeader('Content-Type', 'application/xml');
+    res.sendFile(sitemapPath);
+  } else {
+    res.status(404).json({ error: 'Sitemap file not found' });
+  }
+});
+
+// Serve sitemap index (only if multiple sitemaps exist)
+app.get('/sitemap-index.xml', (req, res) => {
+  const sitemapPath = path.join(__dirname, 'public', 'sitemap-index.xml');
+  
+  if (fs.existsSync(sitemapPath)) {
+    res.setHeader('Content-Type', 'application/xml');
+    res.sendFile(sitemapPath);
+  } else {
+    res.status(404).json({ error: 'Sitemap index not found' });
+  }
+});
+
+// Serve individual sitemap files (only if multiple sitemaps exist)
+app.get('/sitemaps/:filename', (req, res) => {
+  const { filename } = req.params;
+  
+  // Validate filename to prevent directory traversal
+  if (!filename.match(/^sitemap(-[0-9]+)?\.xml$/)) {
+    return res.status(400).json({ error: 'Invalid sitemap filename' });
+  }
+  
+  const sitemapPath = path.join(__dirname, 'public', 'sitemaps', filename);
+  
+  if (fs.existsSync(sitemapPath)) {
+    res.setHeader('Content-Type', 'application/xml');
+    res.sendFile(sitemapPath);
+  } else {
+    res.status(404).json({ error: 'Sitemap file not found' });
+  }
+});
+
 // Serve React app for all other routes (catch-all) - MUST BE LAST
+// But exclude API routes
 app.use((req, res) => {
+  // Don't serve React app for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  
   res.sendFile(path.join(__dirname, 'dist', 'index.html'), (err) => {
     if (err) {
       console.error('Error serving React app:', err);
@@ -3110,7 +5686,45 @@ app.use((req, res) => {
   });
 });
 
+// Placeholder image endpoint
+app.get('/api/placeholder/:width/:height', (req, res) => {
+  const { width, height } = req.params;
+  const w = parseInt(width) || 400;
+  const h = parseInt(height) || 300;
+  
+  // Create a simple SVG placeholder
+  const svg = `
+    <svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="#f3f4f6"/>
+      <text x="50%" y="50%" text-anchor="middle" dy=".3em" font-family="Arial, sans-serif" font-size="14" fill="#6b7280">
+        ${w} × ${h}
+      </text>
+    </svg>
+  `;
+  
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=31536000');
+  res.send(svg);
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-  console.log(`⚠️  Database connection will be tested on first API call`);
+  
+  // Setup cron job for automatic sitemap generation (every night at 2 AM)
+  cron.schedule('0 2 * * *', async () => {
+    try {
+      console.log('🕐 Running scheduled sitemap generation...');
+      const generator = new SitemapGenerator();
+      await generator.generateSitemaps();
+      generator.closeConnection();
+      console.log('✅ Scheduled sitemap generation completed');
+    } catch (error) {
+      console.error('❌ Scheduled sitemap generation failed:', error.message);
+    }
+  }, {
+    scheduled: true,
+    timezone: "Asia/Kolkata"
+  });
+  
+  console.log('⏰ Sitemap generation scheduled for 2:00 AM daily');
 });

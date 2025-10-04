@@ -74,7 +74,7 @@ Message: ${formData.message}`;
     const encodedMessage = encodeURIComponent(whatsAppMessage);
     
     // Open WhatsApp with pre-filled message
-    window.open(`https://wa.me/919810822688?text=${encodedMessage}`, '_blank');
+    window.open(`https://wa.me/918800839490?text=${encodedMessage}`, '_blank');
     
     setIsSubmitting(false);
     setShowSuccess(true);

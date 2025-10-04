@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Search, Calendar, User, Tag, ArrowRight, Clock, Eye } from 'lucide-react';
 import apiService from '../services/api';
+import DynamicSEOWithSchema from '../components/DynamicSEOWithSchema';
+import useDynamicSchema from '../hooks/useDynamicSchema';
 
 const Blogs = () => {
   const navigate = useNavigate();
@@ -12,6 +14,15 @@ const Blogs = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [categories, setCategories] = useState(['all']);
+
+  // Use dynamic schema for blogs listing page - MUST be called before any early returns
+  const { schemas, loading: schemaLoading, error: schemaError } = useDynamicSchema('blog', blogs, {
+    autoFetch: false, // We already have blogs data
+    refreshInterval: 0, // Disable auto-refresh to prevent excessive API calls
+    includeBreadcrumbs: true,
+    includeFAQs: false,
+    limit: 10
+  });
 
   useEffect(() => {
     fetchBlogs();
@@ -102,6 +113,21 @@ const Blogs = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
+      <DynamicSEOWithSchema 
+        title="Zebra Printers India Blog | Latest Barcode Technology Insights"
+        description="Stay updated with the latest insights, tips, and trends in barcode technology, Zebra printers, and business solutions from our expert team."
+        keywords="Zebra blog, barcode technology, printer tips, business solutions, technology insights, Zebra printers India"
+        pageType="blog"
+        content={blogs}
+        breadcrumbs={[
+          { name: 'Home', url: 'https://zebraprintersindia.com' },
+          { name: 'Blog', url: 'https://zebraprintersindia.com/blogs' }
+        ]}
+        includeBreadcrumbs={true}
+        includeFAQs={false}
+        ogType="website"
+        ogImage="https://zebraprintersindia.com/api/placeholder/1200/630"
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div

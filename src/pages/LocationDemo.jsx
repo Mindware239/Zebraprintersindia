@@ -191,7 +191,7 @@ const LocationDemo = () => {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Phone:</label>
-                  <p className="text-gray-600">+91 8527522688</p>
+                  <p className="text-gray-600">+91 8800839490</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Email:</label>

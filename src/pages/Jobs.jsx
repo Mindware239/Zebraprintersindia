@@ -255,7 +255,6 @@ const Jobs = () => {
               {/* Salary */}
               {job.salary_range && (
                 <div className="flex items-center text-green-600 font-medium mb-4">
-                  <DollarSign size={16} className="mr-1" />
                   <span>{job.salary_range}</span>
                 </div>
               )}

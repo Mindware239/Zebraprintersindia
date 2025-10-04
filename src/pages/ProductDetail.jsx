@@ -8,21 +8,44 @@ import { setSSRMetaTags, checkMetaTags } from '../utils/ssrMetaTags';
 import apiService from '../services/api';
 
 const ProductDetail = () => {
-  const { slug } = useParams();
+  const { productSlug } = useParams();
   const navigate = useNavigate();
+  
+  // Parse the URL to extract city and country
+  const parseUrl = () => {
+    const pathname = window.location.pathname;
+    const parts = pathname.split('/');
+    const productPart = parts[1]; // This is the productSlug
+    
+    // Check if there's a location part after the product slug
+    if (parts.length > 2 && parts[2].startsWith('in-')) {
+      const locationPart = parts[2].substring(3); // Remove 'in-' prefix
+      const locationParts = locationPart.split('-');
+      if (locationParts.length >= 2) {
+        const country = locationParts[locationParts.length - 1];
+        const city = locationParts.slice(0, -1).join('-');
+        return { city, country };
+      }
+    }
+    return { city: null, country: null };
+  };
+  
+  const { city, country } = parseUrl();
   const { isEnglish } = useLanguage();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        const data = await apiService.getProductBySlug(slug);
+        console.log('Fetching product with slug:', productSlug);
+        console.log('URL params:', { productSlug, city, country });
+        const data = await apiService.getProductBySlug(productSlug);
+        console.log('Product data received:', data);
         setProduct(data);
         setError(null);
         
@@ -40,15 +63,14 @@ const ProductDetail = () => {
       }
     };
 
-    if (slug) {
+    if (productSlug) {
       fetchProduct();
+    } else {
+      console.log('No productSlug provided');
+      setLoading(false);
     }
-  }, [slug]);
+  }, [productSlug]);
 
-  const handleAddToCart = () => {
-    // TODO: Implement add to cart functionality
-    console.log('Adding to cart:', { productSlug: slug, quantity });
-  };
 
   const handleDownloadDatasheet = () => {
     if (product?.pdf) {
@@ -98,7 +120,7 @@ const ProductDetail = () => {
             borderRadius: '50%',
             animation: 'spin 1s linear infinite'
           }} />
-          Loading product...
+          Loading product... (Slug: {productSlug})
         </div>
         <style>{`
           @keyframes spin {
@@ -155,13 +177,32 @@ const ProductDetail = () => {
   // Debug logging
   console.log('ProductDetail: Product data:', product);
   console.log('ProductDetail: Meta keywords:', product?.metaKeywords);
+  console.log('ProductDetail: Location params:', { city, country });
+
+  // Generate location-specific SEO data
+  const getLocationSpecificSEO = () => {
+    if (!product) return {};
+    
+    const locationText = city && country ? ` in ${city}, ${country}` : '';
+    const locationKeywords = city && country ? `, ${city}, ${country}, ${city} barcode printers, ${country} Zebra printers` : '';
+    
+    return {
+      title: `${product.name}${locationText} | Zebra Printers India`,
+      description: `${product.description}${locationText}. Professional Zebra barcode printing solutions${locationText}.`,
+      keywords: `${product.metaKeywords || product.name}, Zebra printer, barcode printer, ${product.category}, professional printing${locationKeywords}`
+    };
+  };
+
+  const seoData = getLocationSpecificSEO();
+
+  console.log('ProductDetail rendering with:', { productSlug, city, country, product, loading, error });
 
   return (
     <div style={{ minHeight: '100vh', paddingTop: '80px', backgroundColor: '#f9fafb' }}>
       <DynamicSEO
-        title={product ? `${product.name} | Zebra Printers India` : 'Product | Zebra Printers India'}
-        description={product ? product.description : 'Professional Zebra barcode printing solutions'}
-        keywords={product ? product.metaKeywords || `${product.name}, Zebra printer, barcode printer, ${product.category}, professional printing` : 'Zebra printer, barcode printer, professional printing'}
+        title={seoData.title || (product ? `${product.name} | Zebra Printers India` : 'Product | Zebra Printers India')}
+        description={seoData.description || (product ? product.description : 'Professional Zebra barcode printing solutions')}
+        keywords={seoData.keywords || (product ? product.metaKeywords || `${product.name}, Zebra printer, barcode printer, ${product.category}, professional printing` : 'Zebra printer, barcode printer, professional printing')}
         structuredData={product ? {
           "@context": "https://schema.org",
           "@type": "Product",
@@ -205,11 +246,12 @@ const ProductDetail = () => {
         </button>
       </div>
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 16px' }}>
+      <div className="product-detail-container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 16px' }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
+          className="product-detail-card"
           style={{
             backgroundColor: 'white',
             borderRadius: '16px',
@@ -218,15 +260,15 @@ const ProductDetail = () => {
             marginBottom: '32px'
           }}
         >
-          <div style={{
+          <div className="product-detail-grid" style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
             gap: '48px',
             alignItems: 'start'
           }}>
             {/* Product Images */}
             <div>
-              <div style={{
+              <div className="product-image-container" style={{
                 width: '100%',
                 height: '400px',
                 backgroundColor: '#f3f4f6',
@@ -283,7 +325,7 @@ const ProductDetail = () => {
               )}
 
               {/* Product Title */}
-              <h1 style={{
+              <h1 className="product-title" style={{
                 fontSize: '32px',
                 fontWeight: 'bold',
                 color: '#1f2937',
@@ -293,39 +335,62 @@ const ProductDetail = () => {
                 {product.name}
               </h1>
 
-              {/* SKU */}
+              {/* Product Details */}
               <div style={{
-                color: '#6b7280',
-                fontSize: '14px',
-                marginBottom: '16px'
-              }}>
-                SKU: {product.sku || 'N/A'}
-              </div>
-
-              {/* Rating */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
+                backgroundColor: '#f9fafb',
+                borderRadius: '8px',
+                padding: '16px',
                 marginBottom: '24px'
               }}>
-                <div style={{ display: 'flex' }}>
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        fill: i < (product.rating || 0) ? '#fbbf24' : 'none',
-                        color: '#fbbf24'
-                      }}
-                    />
-                  ))}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '12px',
+                  fontSize: '14px'
+                }}>
+                  {product.sku && (
+                    <div>
+                      <span style={{ fontWeight: '500', color: '#374151' }}>
+                        {isEnglish ? 'SKU:' : 'SKU:'}
+                      </span>
+                      <span style={{ color: '#6b7280', marginLeft: '8px' }}>
+                        {product.sku}
+                      </span>
+                    </div>
+                  )}
+                  {product.brand && (
+                    <div>
+                      <span style={{ fontWeight: '500', color: '#374151' }}>
+                        {isEnglish ? 'Brand:' : 'ब्रांड:'}
+                      </span>
+                      <span style={{ color: '#6b7280', marginLeft: '8px' }}>
+                        {product.brand}
+                      </span>
+                    </div>
+                  )}
+                  {product.model && (
+                    <div>
+                      <span style={{ fontWeight: '500', color: '#374151' }}>
+                        {isEnglish ? 'Model:' : 'मॉडल:'}
+                      </span>
+                      <span style={{ color: '#6b7280', marginLeft: '8px' }}>
+                        {product.model}
+                      </span>
+                    </div>
+                  )}
+                  {product.category && (
+                    <div>
+                      <span style={{ fontWeight: '500', color: '#374151' }}>
+                        {isEnglish ? 'Category:' : 'श्रेणी:'}
+                      </span>
+                      <span style={{ color: '#6b7280', marginLeft: '8px' }}>
+                        {product.category}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <span style={{ color: '#6b7280', fontSize: '14px' }}>
-                  {product.rating || 0} ({product.reviews || 0} {isEnglish ? 'reviews' : 'समीक्षाएं'})
-                </span>
               </div>
+
 
               {/* Price */}
               {product.price && (
@@ -340,68 +405,51 @@ const ProductDetail = () => {
               )}
 
               {/* Short Description */}
-              <p style={{
-                fontSize: '16px',
-                color: '#4b5563',
-                lineHeight: 1.6,
-                marginBottom: '24px'
-              }}>
-                {product.shortDescription || product.description}
-              </p>
-
-              {/* Quantity Selector */}
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  {isEnglish ? 'Quantity' : 'मात्रा'}
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '8px',
-                      backgroundColor: 'white',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    -
-                  </button>
-                  <span style={{
-                    minWidth: '60px',
-                    textAlign: 'center',
-                    fontSize: '16px',
-                    fontWeight: '500'
+              {product.shortDescription && (
+                <div style={{ marginBottom: '24px' }}>
+                  <h3 style={{
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '12px'
                   }}>
-                    {quantity}
-                  </span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '8px',
-                      backgroundColor: 'white',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    +
-                  </button>
+                    {isEnglish ? 'Short Description' : 'संक्षिप्त विवरण'}
+                  </h3>
+                  <p style={{
+                    fontSize: '16px',
+                    color: '#4b5563',
+                    lineHeight: 1.6
+                  }}>
+                    {product.shortDescription}
+                  </p>
                 </div>
-              </div>
+              )}
+
+              {/* Product Description */}
+              {product.description && product.description !== product.shortDescription && (
+                <div style={{ marginBottom: '24px' }}>
+                  <h3 style={{
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '12px'
+                  }}>
+                    {isEnglish ? 'Product Description' : 'उत्पाद विवरण'}
+                  </h3>
+                  <div style={{
+                    fontSize: '16px',
+                    color: '#4b5563',
+                    lineHeight: 1.6
+                  }}>
+                    {product.description.split('\n').map((paragraph, index) => (
+                      <p key={index} style={{ marginBottom: '12px' }}>
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
 
               {/* Action Buttons */}
               <div style={{
@@ -409,27 +457,6 @@ const ProductDetail = () => {
                 gap: '12px',
                 marginBottom: '32px'
               }}>
-                <button
-                  onClick={handleAddToCart}
-                  style={{
-                    flex: 1,
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    padding: '16px 24px',
-                    borderRadius: '12px',
-                    border: 'none',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <ShoppingCart size={20} />
-                  {isEnglish ? 'Add to Cart' : 'कार्ट में जोड़ें'}
-                </button>
                 <button
                   onClick={toggleWishlist}
                   style={{
@@ -575,16 +602,56 @@ const ProductDetail = () => {
                   padding: '0',
                   overflow: 'hidden'
                 }}>
-                  <table style={{
+                  <table className="specifications-table" style={{
                     width: '100%',
                     borderCollapse: 'collapse',
                     fontSize: '14px'
                   }}>
                     <tbody>
                       {specifications.map((spec, index) => {
-                        // Split specification by colon to separate key and value
-                        const [key, ...valueParts] = spec.split(':');
-                        const value = valueParts.join(':').trim();
+                        // Handle both colon-separated and semicolon-separated specifications
+                        let key, value;
+                        
+                        if (spec.includes(';')) {
+                          // If it contains semicolons, split by semicolon and then by colon for each part
+                          const parts = spec.split(';').map(part => part.trim()).filter(part => part);
+                          
+                          // Create multiple rows for semicolon-separated specs
+                          return parts.map((part, partIndex) => {
+                            const [partKey, ...partValueParts] = part.split(':');
+                            const partKeyTrimmed = partKey?.trim();
+                            const partValue = partValueParts.join(':').trim();
+                            
+                            return (
+                              <tr key={`${index}-${partIndex}`} style={{
+                                borderBottom: partIndex < parts.length - 1 ? '1px solid #e5e7eb' : 'none'
+                              }}>
+                                <td style={{
+                                  padding: '12px 16px',
+                                  fontWeight: '500',
+                                  color: '#374151',
+                                  backgroundColor: '#f3f4f6',
+                                  width: '35%',
+                                  verticalAlign: 'top'
+                                }}>
+                                  {partKeyTrimmed}
+                                </td>
+                                <td style={{
+                                  padding: '12px 16px',
+                                  color: '#4b5563',
+                                  verticalAlign: 'top'
+                                }}>
+                                  {partValue || '-'}
+                                </td>
+                              </tr>
+                            );
+                          });
+                        } else {
+                          // Original colon-separated format
+                          const [specKey, ...valueParts] = spec.split(':');
+                          key = specKey?.trim();
+                          value = valueParts.join(':').trim();
+                        }
                         
                         return (
                           <tr key={index} style={{
@@ -619,6 +686,68 @@ const ProductDetail = () => {
         </motion.div>
 
       </div>
+      
+      {/* Responsive CSS */}
+      <style>{`
+        @media (max-width: 768px) {
+          .product-detail-container {
+            padding: 16px !important;
+          }
+          .product-detail-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+          .product-detail-card {
+            padding: 20px !important;
+          }
+          .product-image-container {
+            height: 300px !important;
+          }
+          .product-title {
+            font-size: 24px !important;
+            line-height: 1.3 !important;
+          }
+          .product-price {
+            font-size: 20px !important;
+          }
+          .product-description {
+            font-size: 14px !important;
+          }
+          .product-buttons {
+            flex-direction: column !important;
+            gap: 12px !important;
+          }
+          .product-button {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .specifications-table {
+            font-size: 14px !important;
+          }
+          .specifications-table th,
+          .specifications-table td {
+            padding: 8px !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .product-detail-container {
+            padding: 12px !important;
+          }
+          .product-detail-card {
+            padding: 16px !important;
+          }
+          .product-image-container {
+            height: 250px !important;
+          }
+          .product-title {
+            font-size: 20px !important;
+          }
+          .breadcrumb-container {
+            padding: 12px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

@@ -23,9 +23,16 @@ export const LocationProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Auto-detect user location on mount
+  // Auto-detect user location on mount (disabled to prevent interference with cookie banner)
   useEffect(() => {
-    detectUserLocation();
+    // Only detect location if user has already accepted cookies
+    const consent = localStorage.getItem('cookieConsent');
+    if (consent) {
+      const consentData = JSON.parse(consent);
+      if (consentData.accepted) {
+        detectUserLocation();
+      }
+    }
   }, []);
 
   // Load SEO and content data when location changes
@@ -60,14 +67,22 @@ export const LocationProvider = ({ children }) => {
     }
   };
 
+  const clearLocation = () => {
+    setCurrentLocation(null);
+    setSeoData(null);
+    setContentData(null);
+    localStorage.removeItem('userLocation');
+    localStorage.removeItem('locationManuallySet');
+  };
+
   const detectLocationByIP = async () => {
     try {
       // This would typically use a service like ipapi.co or similar
       // For now, we'll set a default location
       setCurrentLocation({
         country: { id: 101, name: 'India', code: 'IN' },
-        state: { id: 22, name: 'Maharashtra' },
-        city: { id: 859, name: 'Mumbai' }
+        state: { id: 9, name: 'Delhi' },
+        city: { id: 18, name: 'New Delhi' }
       });
     } catch (err) {
       console.error('IP location detection error:', err);
@@ -80,8 +95,8 @@ export const LocationProvider = ({ children }) => {
       // For now, we'll set a default location
       setCurrentLocation({
         country: { id: 101, name: 'India', code: 'IN' },
-        state: { id: 22, name: 'Maharashtra' },
-        city: { id: 859, name: 'Mumbai' }
+        state: { id: 9, name: 'Delhi' },
+        city: { id: 18, name: 'New Delhi' }
       });
     } catch (err) {
       console.error('Reverse geocoding error:', err);
@@ -154,6 +169,8 @@ export const LocationProvider = ({ children }) => {
     setCurrentLocation(location);
     // Store in localStorage for persistence
     localStorage.setItem('userLocation', JSON.stringify(location));
+    // Mark that location was manually set by user
+    localStorage.setItem('locationManuallySet', 'true');
     
     // Load location-specific data
     if (location.city?.id) {
@@ -191,6 +208,8 @@ export const LocationProvider = ({ children }) => {
       
       // Store in localStorage for persistence
       localStorage.setItem('userLocation', JSON.stringify(location));
+      // Mark that location was manually set by user
+      localStorage.setItem('locationManuallySet', 'true');
       
     } catch (err) {
       console.error('Error updating location by city ID:', err);
@@ -278,7 +297,8 @@ export const LocationProvider = ({ children }) => {
     getLocationString,
     getLocationForSEO,
     getLocationContent,
-    detectUserLocation
+    detectUserLocation,
+    clearLocation
   };
 
   return (

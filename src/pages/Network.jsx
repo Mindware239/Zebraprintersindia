@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, MapPin, Globe, Building, ChevronDown, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 import api from '../services/api';
 import { useLocation } from '../contexts/LocationContext';
 import { createCitySlug } from '../utils/urlUtils';
@@ -150,12 +151,11 @@ const Network = () => {
 
   return (
     <div className="network-page">
-      {/* SEO Meta Tags */}
-      <head>
+      <Helmet>
         <title>Global Network - Zebra Printers India | Worldwide Locations</title>
         <meta name="description" content="Explore our global network of locations across countries, states, and cities. Find Zebra Printers India services near you with our comprehensive location directory." />
         <meta name="keywords" content="Zebra Printers, global network, locations, countries, states, cities, worldwide, India, barcode printers" />
-      </head>
+      </Helmet>
 
       {/* Header Section */}
       <div className="network-header">

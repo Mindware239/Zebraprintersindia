@@ -1,30 +1,13 @@
-import mysql from 'mysql2';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getConnection } from './database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Database connection for setup - with error handling
-let db;
-try {
-  db = mysql.createConnection({
-    host: process.env.MYSQL_HOST || 'localhost',
-    user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || '',
-    database: process.env.MYSQL_DATABASE || 'zebra_db',
-    multipleStatements: true
-  });
-  
-  // Handle connection errors
-  db.on('error', (err) => {
-    console.log('⚠️  Database connection error in setup:', err.message);
-  });
-} catch (error) {
-  console.log('⚠️  Could not create database connection for setup:', error.message);
-  db = null;
-}
+// Use centralized database connection
+const db = getConnection();
 
 // Function to setup database
 export async function setupDatabase() {

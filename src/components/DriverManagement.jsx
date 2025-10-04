@@ -524,13 +524,13 @@ const DriverManagement = () => {
                           type="file"
                           className="sr-only"
                           onChange={handleFileChange}
-                          accept=".exe,.msi,.dmg,.pkg,.deb,.rpm,.apk,.ipa"
+                          accept="*"
                         />
                       </label>
                       <p className="pl-1">or drag and drop</p>
                     </div>
                     <p className="text-xs text-gray-500">
-                      EXE, MSI, DMG, PKG, DEB, RPM, APK, IPA up to 100MB
+                      All file types accepted: EXE, ZIP, MSI, DMG, PKG, DEB, RPM, APK, IPA, PDF, DOC, TXT and more
                     </p>
                     {formData.fileName && (
                       <p className="text-sm text-green-600 mt-2">

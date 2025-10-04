@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Phone, Mail, ChevronDown } from 'lucide-react';
+import { Menu, X, Phone, Mail, ChevronDown, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import MINDWARELogo from './MINDWARELogo';
 import ProductDropdown from './ProductDropdown';
+import ProductSearch from './ProductSearch';
 import LocationBanner from './LocationBanner';
+import logoImage from '../assets/logo.png';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
+  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
+  const [hoverTimeout, setHoverTimeout] = useState(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -36,16 +39,22 @@ const Header = () => {
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
+      // Cleanup timeout on unmount
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
     };
-  }, []);
+  }, [hoverTimeout]);
 
   const navItems = [
     { name: 'Home', path: '/' },
     { name: 'Products', path: '/products', hasDropdown: true },
-    { name: 'Service & Support', path: '/service-support' },
+    { name: 'Service & Support', path: '/service-support', hasDropdown: true, dropdownItems: [
+      { name: 'Service & Support', path: '/service-support' },
+      { name: 'Drivers', path: '/drivers' }
+    ]},
     { name: 'About', path: '/about' },
     { name: 'Contact', path: '/contact' },
-    { name: 'Jobs', path: '/jobs' },
     { name: 'Blogs', path: '/blogs' }
   ];
 
@@ -83,11 +92,11 @@ const Header = () => {
   const navContainerStyles = {
     maxWidth: '1200px',
     margin: '0 auto',
-    padding: '0 16px',
+    padding: '0 20px',
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    height: '64px'
+    height: '80px',
+    gap: '24px'
   };
 
   const logoStyles = {
@@ -98,26 +107,32 @@ const Header = () => {
     color: 'inherit'
   };
 
-
-
-
-
-
   const desktopNavStyles = {
     display: isMobile ? 'none' : 'flex',
     alignItems: 'center',
-    gap: '32px'
+      gap: '16px',
+    flex: '0 0 auto'
+  };
+
+  const searchContainerStyles = {
+    display: isMobile ? 'none' : 'flex',
+    alignItems: 'center',
+    flex: '0 0 auto',
+    maxWidth: '240px',
+    minWidth: '180px',
+    marginLeft: 'auto'
   };
 
   const navLinkStyles = (isActive) => ({
-    padding: '8px 12px',
-    fontSize: '16px',
-    fontWeight: '500',
+    padding: '12px 16px',
+    fontSize: '18px',
+    fontWeight: '600',
     textDecoration: 'none',
     color: isActive ? '#2563eb' : '#374151',
     transition: 'color 0.2s ease',
     position: 'relative',
-    borderRadius: '6px'
+    borderRadius: '8px',
+    letterSpacing: '0.3px'
   });
 
   const mobileMenuButtonStyles = {
@@ -145,7 +160,7 @@ const Header = () => {
   const mobileMenuContentStyles = {
     position: 'fixed',
     top: 0,
-    right: 0,
+    right: '50px',
     width: '75%',
     maxWidth: '300px',
     height: '100%',
@@ -170,7 +185,7 @@ const Header = () => {
   const mobileLogoStyles = {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '12px',
     textDecoration: 'none',
     color: 'inherit'
   };
@@ -183,14 +198,15 @@ const Header = () => {
 
   const mobileNavLinkStyles = (isActive) => ({
     display: 'block',
-    padding: '12px 16px',
-    fontSize: '16px',
-    fontWeight: '500',
+    padding: '14px 18px',
+    fontSize: '18px',
+    fontWeight: '600',
     textDecoration: 'none',
     color: isActive ? '#2563eb' : '#374151',
     backgroundColor: isActive ? '#eff6ff' : 'transparent',
     borderRadius: '8px',
-    transition: 'all 0.2s ease'
+    transition: 'all 0.2s ease',
+    letterSpacing: '0.3px'
   });
 
   const closeButtonStyles = {
@@ -218,9 +234,39 @@ const Header = () => {
         <div className="top-bar" style={topBarStyles}>
           <div style={topBarContainerStyles}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Phone size={16} />
-              <span>+91 8527522688</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <MessageCircle size={16} style={{ color: '#25D366' }} />
+                <a 
+                  href="https://wa.me/918800839490" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{ 
+                    color: '#ffffff', 
+                    textDecoration: 'none',
+                    transition: 'color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.color = '#25D366'}
+                  onMouseLeave={(e) => e.target.style.color = '#ffffff'}
+                >
+                  +91 8800839490
+                </a>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Phone size={16} style={{ color: '#3B82F6' }} />
+                <a 
+                  href="tel:+918800122315" 
+                  style={{ 
+                    color: '#ffffff', 
+                    textDecoration: 'none',
+                    transition: 'color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.color = '#3B82F6'}
+                  onMouseLeave={(e) => e.target.style.color = '#ffffff'}
+                >
+                  +91 8800122315
+                </a>
+              </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Mail size={16} />
@@ -244,7 +290,22 @@ const Header = () => {
         <div style={navContainerStyles}>
           {/* Logo */}
           <Link to="/" style={logoStyles}>
-            <MINDWARELogo size={150} showText={!isMobile} isMobile={isMobile} />
+            <img 
+              src={logoImage} 
+              alt="MINDWARE Logo" 
+              style={{
+                width: isMobile ? 80 : 120,
+                height: isMobile ? 45 : 68,
+                objectFit: 'contain'
+              }}
+              onError={(e) => {
+                console.error('Header logo failed to load:', e.target.src);
+                e.target.style.display = 'none';
+              }}
+              onLoad={() => {
+                console.log('Header logo loaded successfully');
+              }}
+            />
           </Link>
 
           {/* Desktop Navigation */}
@@ -255,12 +316,30 @@ const Header = () => {
                 style={{ position: 'relative' }}
                 onMouseEnter={() => {
                   if (item.hasDropdown) {
-                    setIsProductDropdownOpen(true);
+                    // Clear any existing timeout
+                    if (hoverTimeout) {
+                      clearTimeout(hoverTimeout);
+                      setHoverTimeout(null);
+                    }
+                    
+                    if (item.name === 'Products') {
+                      setIsProductDropdownOpen(true);
+                    } else if (item.name === 'Service & Support') {
+                      setIsServiceDropdownOpen(true);
+                    }
                   }
                 }}
                 onMouseLeave={() => {
                   if (item.hasDropdown) {
-                    setIsProductDropdownOpen(false);
+                    // Add delay before closing to allow mouse to move to dropdown
+                    const timeout = setTimeout(() => {
+                      if (item.name === 'Products') {
+                        setIsProductDropdownOpen(false);
+                      } else if (item.name === 'Service & Support') {
+                        setIsServiceDropdownOpen(false);
+                      }
+                    }, 200); // 200ms delay
+                    setHoverTimeout(timeout);
                   }
                 }}
               >
@@ -298,8 +377,73 @@ const Header = () => {
                     />
                   )}
                 </Link>
+
+                {/* Service & Support Dropdown - positioned relative to its parent */}
+                {item.name === 'Service & Support' && item.hasDropdown && (
+                  <AnimatePresence>
+                    {isServiceDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                          zIndex: 50,
+                          minWidth: '200px',
+                          padding: '8px 0',
+                          marginTop: '8px'
+                        }}
+                        onMouseEnter={() => setIsServiceDropdownOpen(true)}
+                        onMouseLeave={() => setIsServiceDropdownOpen(false)}
+                      >
+                        {item.dropdownItems?.map((dropdownItem) => (
+                          <Link
+                            key={dropdownItem.name}
+                            to={dropdownItem.path}
+                            style={{
+                              display: 'block',
+                              padding: '12px 16px',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              textDecoration: 'none',
+                              color: location.pathname === dropdownItem.path ? '#2563eb' : '#374151',
+                              backgroundColor: location.pathname === dropdownItem.path ? '#eff6ff' : 'transparent',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.color = '#2563eb';
+                              e.target.style.backgroundColor = '#eff6ff';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.color = location.pathname === dropdownItem.path ? '#2563eb' : '#374151';
+                              e.target.style.backgroundColor = location.pathname === dropdownItem.path ? '#eff6ff' : 'transparent';
+                            }}
+                          >
+                            {dropdownItem.name}
+                          </Link>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                )}
               </div>
             ))}
+          </div>
+
+          {/* Search Box - Positioned at the end of navigation */}
+          <div style={searchContainerStyles}>
+            <ProductSearch 
+              placeholder="Search products..."
+              className="header-search"
+            />
           </div>
 
           {/* Mobile Menu Button */}
@@ -322,10 +466,28 @@ const Header = () => {
       {/* Product Dropdown */}
       <ProductDropdown
         isOpen={isProductDropdownOpen}
-        onClose={() => setIsProductDropdownOpen(false)}
-        onMouseEnter={() => setIsProductDropdownOpen(true)}
-        onMouseLeave={() => setIsProductDropdownOpen(false)}
+        onClose={() => {
+          if (hoverTimeout) {
+            clearTimeout(hoverTimeout);
+            setHoverTimeout(null);
+          }
+          setIsProductDropdownOpen(false);
+        }}
+        onMouseEnter={() => {
+          if (hoverTimeout) {
+            clearTimeout(hoverTimeout);
+            setHoverTimeout(null);
+          }
+          setIsProductDropdownOpen(true);
+        }}
+        onMouseLeave={() => {
+          const timeout = setTimeout(() => {
+            setIsProductDropdownOpen(false);
+          }, 200);
+          setHoverTimeout(timeout);
+        }}
       />
+
 
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
@@ -349,7 +511,7 @@ const Header = () => {
               {/* Mobile Menu Header */}
               <div style={mobileMenuHeaderStyles}>
                 <Link to="/" style={mobileLogoStyles} onClick={() => setIsMenuOpen(false)}>
-                  <MINDWARELogo size={36} showText={true} isMobile={true} />
+                  <MINDWARELogo size={68} showText={true} isMobile={true} />
                 </Link>
                 <button
                   onClick={() => setIsMenuOpen(false)}
@@ -365,29 +527,100 @@ const Header = () => {
                 </button>
               </div>
 
+              {/* Mobile Search Box */}
+              <div style={{ marginBottom: '24px' }}>
+                <ProductSearch 
+                  placeholder="Search products..."
+                  className="mobile-search"
+                />
+              </div>
+
               {/* Mobile Navigation Links */}
               <div style={mobileNavStyles}>
                 {navItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.path}
-                    style={mobileNavLinkStyles(location.pathname === item.path)}
-                    onClick={() => setIsMenuOpen(false)}
-                    onMouseEnter={(e) => {
-                      if (location.pathname !== item.path) {
-                        e.target.style.backgroundColor = '#f3f4f6';
-                        e.target.style.color = '#2563eb';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (location.pathname !== item.path) {
-                        e.target.style.backgroundColor = 'transparent';
-                        e.target.style.color = '#374151';
-                      }
-                    }}
-                  >
-                    {item.name}
-                  </Link>
+                  <div key={item.name}>
+                    <Link
+                      to={item.path}
+                      style={{
+                        ...mobileNavLinkStyles(location.pathname === item.path),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}
+                      onClick={() => setIsMenuOpen(false)}
+                      onMouseEnter={(e) => {
+                        if (location.pathname !== item.path) {
+                          e.target.style.backgroundColor = '#f3f4f6';
+                          e.target.style.color = '#2563eb';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (location.pathname !== item.path) {
+                          e.target.style.backgroundColor = 'transparent';
+                          e.target.style.color = '#374151';
+                        }
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {item.name === 'Home' && (
+                          <img 
+                            src={logoImage} 
+                            alt="MINDWARE Logo" 
+                            style={{
+                              width: '20px',
+                              height: '20px',
+                              objectFit: 'contain'
+                            }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        )}
+                        <span>{item.name}</span>
+                      </div>
+                      {item.hasDropdown && (
+                        <ChevronDown 
+                          size={16} 
+                          style={{ 
+                            marginLeft: '8px',
+                            transition: 'transform 0.2s ease'
+                          }} 
+                        />
+                      )}
+                    </Link>
+                    {/* Mobile Dropdown Items */}
+                    {item.dropdownItems && (
+                      <div style={{ paddingLeft: '16px', marginTop: '4px' }}>
+                        {item.dropdownItems.map((dropdownItem) => (
+                          <Link
+                            key={dropdownItem.name}
+                            to={dropdownItem.path}
+                            style={{
+                              ...mobileNavLinkStyles(location.pathname === dropdownItem.path),
+                              fontSize: '14px',
+                              padding: '8px 16px',
+                              marginBottom: '4px'
+                            }}
+                            onClick={() => setIsMenuOpen(false)}
+                            onMouseEnter={(e) => {
+                              if (location.pathname !== dropdownItem.path) {
+                                e.target.style.backgroundColor = '#f3f4f6';
+                                e.target.style.color = '#2563eb';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (location.pathname !== dropdownItem.path) {
+                                e.target.style.backgroundColor = 'transparent';
+                                e.target.style.color = '#374151';
+                              }
+                            }}
+                          >
+                            {dropdownItem.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
 
@@ -406,7 +639,7 @@ const Header = () => {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Phone size={16} />
-                    <span>+91 8527522688</span>
+                    <span>+91 8800839490</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Mail size={16} />

@@ -5,7 +5,9 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { getTranslation } from '../translations/translations';
 import { useLocation } from '../contexts/LocationContext';
 import DynamicContent from '../components/DynamicContent';
-import DynamicSEO from '../components/DynamicSEO';
+import DynamicSEOWithSchema from '../components/DynamicSEOWithSchema';
+import useDynamicSchema from '../hooks/useDynamicSchema';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import hero1 from '../assets/hero1.png';
 import hero2 from '../assets/hero2.png';
@@ -14,6 +16,7 @@ import hero4 from '../assets/hero4.png';
 import hero5 from '../assets/hero5.png';
 import AboutSection from '../components/AboutSection';
 import ContactSection from '../components/ContactSection';
+import PageTracker from '../components/PageTracker';
 // Removed Card and FeatureCard imports - using inline components
 
 // Styled Card Component
@@ -309,7 +312,23 @@ const StyledCard = styled.div`
 const Home = () => {
   const { language } = useLanguage();
   const { currentLocation } = useLocation();
+  const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [cookieConsent, setCookieConsent] = useState(null);
+
+  // Function to generate product URL (only add location if explicitly selected)
+  const getProductUrl = (productSlug) => {
+    // Only add location if user has explicitly selected a location
+    // Check if location was manually set by user (not auto-detected)
+    const isLocationManuallySet = localStorage.getItem('locationManuallySet') === 'true';
+    
+    if (isLocationManuallySet && currentLocation?.city?.name && currentLocation?.country?.name) {
+      const citySlug = currentLocation.city.name.toLowerCase().replace(/\s+/g, '-');
+      const countrySlug = currentLocation.country.name.toLowerCase().replace(/\s+/g, '-');
+      return `/${productSlug}/in-${citySlug}-${countrySlug}`;
+    }
+    return `/${productSlug}`;
+  };
 
   // Hero images array
   const bannerContent = [
@@ -357,6 +376,16 @@ const Home = () => {
     }, 3000);
     return () => clearInterval(timer);
   }, [bannerContent.length]);
+
+  // Fetch featured products on component mount
+  useEffect(() => {
+    fetchFeaturedProducts();
+  }, []);
+
+  // Cookie consent handler
+  const handleCookieConsentChange = (consent) => {
+    setCookieConsent(consent);
+  };
   
   // Inline FeatureCard component
   const FeatureCard = ({ icon: Icon, title, description }) => (
@@ -423,11 +452,78 @@ const Home = () => {
   ];
 
   const stats = [
-    { number: '25+', labelKey: 'home.stats.experience' },
-    { number: '1000+', labelKey: 'home.stats.customers' },
+    { number: '28+', labelKey: 'home.stats.experience' },
+    { number: '15,000+', labelKey: 'home.stats.customers' },
     { number: '50+', labelKey: 'home.stats.categories' },
     { number: '99%', labelKey: 'home.stats.satisfaction' }
   ];
+
+  // Featured Products State
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState({});
+
+  // Truncate text function for product descriptions
+  const truncateText = (text, maxLength = 80) => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength).trim() + '...';
+  };
+
+  // Toggle description expansion
+  const toggleDescription = (productId) => {
+    setExpandedDescriptions(prev => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }));
+  };
+
+  // Fetch featured products from database
+  const fetchFeaturedProducts = async () => {
+    try {
+      setProductsLoading(true);
+      const response = await fetch('/api/products/featured');
+      if (!response.ok) {
+        throw new Error('Failed to fetch featured products');
+      }
+      const data = await response.json();
+      setFeaturedProducts(data.products || []);
+      setProductsError(null);
+    } catch (error) {
+      console.error('Error fetching featured products:', error);
+      setProductsError(error.message);
+      // Fallback to sample data if API fails
+      setFeaturedProducts([
+        {
+          id: 1,
+          name: 'Zebra FS80 Scanner',
+          description: 'Superior scanning performance for demanding industrial environments with advanced imaging technology.',
+          image: 'https://images.unsplash.com/photo-1586953208448-b95a79798f4e?w=400&h=300&fit=crop&crop=center'
+        },
+        {
+          id: 2,
+          name: 'Zebra FS42 Scanner',
+          description: 'Compact design for medium-duty scanning tasks with flexible mounting options.',
+          image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop&crop=center'
+        },
+        {
+          id: 3,
+          name: 'Zebra FS10 Scanner',
+          description: 'Reliable and fast scanning for industrial applications with rugged construction.',
+          image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop&crop=center'
+        },
+        {
+          id: 4,
+          name: 'Zebra FS20 Scanner',
+          description: 'High-speed and accurate scanning for manufacturing environments with flexible connectivity.',
+          image: 'https://images.unsplash.com/photo-1586953208448-b95a79798f4e?w=400&h=300&fit=crop&crop=center'
+        }
+      ]);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
 
   const pageStyles = {
     minHeight: '100vh'
@@ -502,8 +598,8 @@ const Home = () => {
 
   const ctaSectionStyles = {
     padding: '15px 0',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%)',
-    color: '#ffffff'
+    background: '#ffffff',
+    color: '#1f2937'
   };
 
   const ctaContainerStyles = {
@@ -534,13 +630,13 @@ const Home = () => {
   };
 
   const primaryButtonStyles = {
-    backgroundColor: '#ffffff',
-    color: '#667eea',
+    backgroundColor: '#667eea',
+    color: '#ffffff',
     padding: '12px 32px',
     borderRadius: '8px',
     fontSize: '16px',
     fontWeight: '600',
-    border: 'none',
+    border: '2px solid #667eea',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -551,49 +647,96 @@ const Home = () => {
   };
 
   const secondaryButtonStyles = {
-    backgroundColor: 'transparent',
+    backgroundColor: '#f093fb',
     color: '#ffffff',
     padding: '12px 32px',
     borderRadius: '8px',
     fontSize: '16px',
     fontWeight: '600',
-    border: '2px solid #ffffff',
+    border: '2px solid #f093fb',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
     textDecoration: 'none'
   };
 
-  // Popular Products Section Styles
-  const popularProductsSectionStyles = {
+  // Featured Products Section Styles
+  const featuredProductsSectionStyles = {
     padding: '40px 0 10px 0',
     backgroundColor: '#f8fafc'
   };
 
-  const popularProductsContainerStyles = {
+  const featuredProductsContainerStyles = {
     maxWidth: '1200px',
     margin: '0 auto',
     padding: '0 16px'
   };
 
-  const popularProductsHeaderStyles = {
+  const featuredProductsHeaderStyles = {
     textAlign: 'center',
-    marginBottom: '24px'
+    marginBottom: '40px'
   };
 
-  const popularProductsTitleStyles = {
+  const featuredProductsTitleStyles = {
     fontSize: 'clamp(2rem, 4vw, 2.5rem)',
     fontWeight: 'bold',
     color: '#1f2937',
     marginBottom: '8px'
   };
 
-  const popularProductsDescriptionStyles = {
+  const featuredProductsDescriptionStyles = {
     fontSize: '18px',
     color: '#6b7280',
     maxWidth: '600px',
     margin: '0 auto'
   };
 
+  // Featured Products Grid Styles
+  const featuredProductsGridStyles = {
+    display: 'grid',
+    gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : window.innerWidth <= 1200 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+    gap: '16px',
+    marginBottom: '40px'
+  };
+
+  const productCardStyles = {
+    background: '#ffffff',
+    borderRadius: '12px',
+    padding: '16px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+    border: '1px solid #e5e7eb',
+    transition: 'all 0.3s ease',
+    cursor: 'pointer',
+    position: 'relative',
+    overflow: 'hidden',
+    minHeight: '320px',
+    display: 'flex',
+    flexDirection: 'column'
+  };
+
+  const productImageStyles = {
+    width: '100%',
+    height: '140px',
+    objectFit: 'cover',
+    borderRadius: '8px',
+    marginBottom: '12px',
+    backgroundColor: '#f3f4f6'
+  };
+
+  const productNameStyles = {
+    fontSize: '1rem',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '6px',
+    lineHeight: '1.3'
+  };
+
+  const productDescriptionStyles = {
+    fontSize: '12px',
+    color: '#6b7280',
+    lineHeight: '1.4',
+    marginBottom: '12px',
+    flex: 1
+  };
 
   const viewAllButtonStyles = {
     display: 'inline-block',
@@ -614,12 +757,43 @@ const Home = () => {
     overflow: 'hidden'
   };
 
+  // Use dynamic schema for homepage
+  const { schemas, loading: schemaLoading, error: schemaError } = useDynamicSchema('homepage', null, {
+    autoFetch: true,
+    refreshInterval: 600000, // 10 minutes - reduced API calls
+    includeBreadcrumbs: false,
+    includeFAQs: false,
+    limit: 6
+  });
+
+
   return (
     <div style={pageStyles}>
-      <DynamicSEO 
+      {/* Page Tracker */}
+      <PageTracker pageName="Home Page" />
+      
+        
+        <style>
+          {`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}
+        </style>
+        
+        <DynamicSEOWithSchema
         title="Zebra Barcode Printers India | Professional Barcode Solutions"
         description="Leading supplier of Zebra barcode printers, scanners, and mobile computers in India. Professional barcode technology solutions for businesses."
         keywords="Zebra barcode printers, barcode scanners, mobile computers, label printers, RFID solutions, India"
+        pageType="homepage"
+        autoFetchContent={true}
+        contentLimit={6}
+        refreshInterval={300000}
+        includeBreadcrumbs={false}
+        includeFAQs={false}
+        ogType="website"
+        ogImage="https://zebraprintersindia.com/api/placeholder/1200/630"
       />
       {/* Hero Section with Home Banner Card */}
       <div className="home-banner-wrapper">
@@ -646,10 +820,16 @@ const Home = () => {
                 {/* Slide Indicators */}
                 <div className="slide-indicators">
                   {bannerContent.map((_, index) => (
-                    <div
+                    <button
                       key={index}
                       className={`indicator ${currentSlide === index ? 'active' : ''}`}
                       onClick={() => setCurrentSlide(index)}
+                      style={{ 
+                        cursor: 'pointer',
+                        border: 'none',
+                        background: 'none',
+                        padding: 0
+                      }}
                     />
                   ))}
                 </div>
@@ -659,11 +839,31 @@ const Home = () => {
                   <div className="text-card">
                     <h1 className="card-title">{bannerContent[currentSlide].heading}</h1>
                     <p className="card-subtitle">{bannerContent[currentSlide].subheading}</p>
-                    <button className="cta-button">
+                    <button 
+                      className="cta-button"
+                      onClick={() => {
+                        const currentBanner = bannerContent[currentSlide];
+                        if (currentBanner.ctaText === 'Explore Printers') {
+                          navigate('/printers');
+                        } else if (currentBanner.ctaText === 'Shop Scanners') {
+                          navigate('/scanners');
+                        } else if (currentBanner.ctaText === 'View Supplies') {
+                          navigate('/supplies');
+                        } else if (currentBanner.ctaText === 'Explore RFID') {
+                          navigate('/rfid');
+                        } else if (currentBanner.ctaText === 'Contact Us Today') {
+                          navigate('/contact');
+                        } else {
+                          navigate('/products');
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       {bannerContent[currentSlide].ctaText}
                       <ArrowRight className="cta-icon" />
                     </button>
                   </div>
+
                 </div>
               </div>
             </div>
@@ -671,20 +871,20 @@ const Home = () => {
         </StyledCard>
       </div>
 
-      {/* Popular Products Section */}
-      <section style={popularProductsSectionStyles}>
-        <div style={popularProductsContainerStyles}>
+      {/* Featured Products Section */}
+      <section style={featuredProductsSectionStyles}>
+        <div style={featuredProductsContainerStyles}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            style={popularProductsHeaderStyles}
+            style={featuredProductsHeaderStyles}
           >
-            <h2 style={popularProductsTitleStyles}>
-              {getTranslation('home.sections.popularProducts.title', language)}
+            <h2 style={featuredProductsTitleStyles}>
+              Featured Products
             </h2>
-            <p style={popularProductsDescriptionStyles}>
-              {getTranslation('home.sections.popularProducts.description', language)}
+            <p style={featuredProductsDescriptionStyles}>
+              Discover our top-rated barcode printing and scanning solutions designed for businesses of all sizes
             </p>
           </motion.div>
 
@@ -692,21 +892,143 @@ const Home = () => {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              minHeight: '400px',
-              marginBottom: '32px',
-              background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-              borderRadius: '16px',
-              border: '2px dashed #cbd5e1'
-            }}
+            style={featuredProductsGridStyles}
           >
-            <div style={{ textAlign: 'center', color: '#64748b' }}>
-              <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Product Showcase</h3>
-              <p>Featured products will be displayed here</p>
-            </div>
+            {productsLoading ? (
+              // Loading state
+              Array.from({ length: 4 }).map((_, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  style={{
+                    ...productCardStyles,
+                    background: '#f3f4f6',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '300px'
+                  }}
+                >
+                  <div style={{
+                    width: '60px',
+                    height: '60px',
+                    border: '3px solid #e5e7eb',
+                    borderTop: '3px solid #059669',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading...</p>
+                </motion.div>
+              ))
+            ) : productsError ? (
+              // Error state
+              <div style={{
+                gridColumn: '1 / -1',
+                textAlign: 'center',
+                padding: '40px',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '12px',
+                color: '#dc2626'
+              }}>
+                <h3>Unable to load featured products</h3>
+                <p>{productsError}</p>
+                <button
+                  onClick={fetchFeaturedProducts}
+                  style={{
+                    marginTop: '16px',
+                    padding: '8px 16px',
+                    background: '#059669',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : featuredProducts.length === 0 ? (
+              // No products state
+              <div style={{
+                gridColumn: '1 / -1',
+                textAlign: 'center',
+                padding: '40px',
+                background: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                borderRadius: '12px',
+                color: '#6b7280'
+              }}>
+                <h3>No featured products available</h3>
+                <p>Check back later for our latest products</p>
+              </div>
+            ) : (
+              // Products display
+              featuredProducts.map((product, index) => (
+              <motion.div
+                key={product.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                style={productCardStyles}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+                }}
+                onClick={() => navigate(`/${product.slug || product.id}`)}
+              >
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  style={productImageStyles}
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/400x300/f3f4f6/6b7280?text=Product+Image';
+                  }}
+                />
+                <h3 style={productNameStyles}>{product.name}</h3>
+                <div style={productDescriptionStyles}>
+                  <p>
+                    {expandedDescriptions[product.id] 
+                      ? product.description
+                      : truncateText(product.description, 80)
+                    }
+                  </p>
+                  {product.description && product.description.length > 80 && (
+                    <span 
+                      style={{
+                        color: '#10b981',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        textDecoration: 'underline'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleDescription(product.id);
+                      }}
+                    >
+                      {expandedDescriptions[product.id] ? 'Read less' : 'Read more'}
+                    </span>
+                  )}
+                </div>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-end', 
+                  alignItems: 'center',
+                  marginTop: 'auto'
+                }}>
+                  <ArrowRight size={20} color="#059669" />
+                </div>
+              </motion.div>
+              ))
+            )}
           </motion.div>
 
           <motion.div
@@ -715,8 +1037,8 @@ const Home = () => {
             transition={{ duration: 0.6, delay: 0.4 }}
             style={{ textAlign: 'center', marginBottom: '5px' }}
           >
-            <a
-              href="/products"
+            <button
+              onClick={() => navigate('/products')}
               style={viewAllButtonStyles}
               onMouseEnter={(e) => {
                 e.target.style.background = 'linear-gradient(135deg, #059669 0%, #047857 50%, #065f46 100%)';
@@ -730,7 +1052,7 @@ const Home = () => {
               }}
             >
               View All Products
-            </a>
+            </button>
           </motion.div>
         </div>
       </section>
@@ -824,11 +1146,14 @@ const Home = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 style={primaryButtonStyles}
+                onClick={() => navigate('/contact')}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#f0f4ff';
+                  e.target.style.backgroundColor = '#5a67d8';
+                  e.target.style.borderColor = '#5a67d8';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#ffffff';
+                  e.target.style.backgroundColor = '#667eea';
+                  e.target.style.borderColor = '#667eea';
                 }}
               >
                 <span>{getTranslation('home.sections.cta.buttons.quote', language)}</span>
@@ -838,13 +1163,14 @@ const Home = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 style={secondaryButtonStyles}
+                onClick={() => navigate('/products')}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#ffffff';
-                  e.target.style.color = '#667eea';
+                  e.target.style.backgroundColor = '#e879f9';
+                  e.target.style.borderColor = '#e879f9';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = '#ffffff';
+                  e.target.style.backgroundColor = '#f093fb';
+                  e.target.style.borderColor = '#f093fb';
                 }}
               >
                 {getTranslation('home.sections.cta.buttons.products', language)}

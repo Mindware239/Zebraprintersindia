@@ -127,8 +127,8 @@ const ServiceSupport = () => {
   const serviceFeatures = [
     {
       icon: Award,
-      title: { en: 'Zebra Authorized Service & Support Partner', hi: 'ज़ेबरा अधिकृत सेवा और सहायता भागीदार' },
-      description: { en: 'Official authorization from Zebra Technologies', hi: 'ज़ेबरा टेक्नोलॉजीज से आधिकारिक प्राधिकरण' }
+      title: { en: 'Zebra  Service & Support', hi: 'ज़ेबरा अधिकृत सेवा और सहायता भागीदार' },
+      description: { en: 'Zebra Printers sales & Service ', hi: 'ज़ेबरा टेक्नोलॉजीज से आधिकारिक प्राधिकरण' }
     },
     {
       icon: Settings,
@@ -165,8 +165,8 @@ const ServiceSupport = () => {
         hi: 'क्या आप प्रिंटर मरम्मत सेवाएं प्रदान करते हैं?' 
       },
       answer: { 
-        en: 'Yes ✅ We are a Zebra authorized support & service center, and we also repair other branded printers.', 
-        hi: 'हां ✅ हम एक ज़ेबरा अधिकृत सहायता और सेवा केंद्र हैं, और हम अन्य ब्रांडेड प्रिंटरों की भी मरम्मत करते हैं।' 
+        en: 'Yes ✅ We are a Zebra support & service center, and we also repair other branded printers.', 
+        hi: 'हां ✅ हम एक ज़ेबरा सहायता और सेवा केंद्र हैं, और हम अन्य ब्रांडेड प्रिंटरों की भी मरम्मत करते हैं।' 
       }
     },
     {
@@ -252,7 +252,7 @@ const ServiceSupport = () => {
 
   // Contact information
   const contactInfo = {
-    phone: '+91 9717122688, +918527522688',
+    phone: '+91 8800839490, +91 8800122315',
     email: 'gm@indianbarcode.com',
     address: 'S 4, Plot No-7, Pocket-7, Pankaj Plaza, Near Metro Station, Sector-12, Dwarka, New Delhi 110078'
   };
@@ -619,8 +619,8 @@ const ServiceSupport = () => {
       {/* CTA Section */}
       <section style={{
         padding: '80px 0',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%)',
-        color: '#ffffff',
+        background: '#ffffff',
+        color: '#1f2937',
         textAlign: 'center'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 16px' }}>
@@ -644,8 +644,8 @@ const ServiceSupport = () => {
               opacity: 0.9
             }}>
               {isEnglish 
-                ? 'Call us now at +91 9717122688 or request a remote session via Anydesk.'
-                : 'अभी हमें +91 9717122688 पर कॉल करें या Anydesk के माध्यम से दूरस्थ सत्र का अनुरोध करें।'
+                ? 'Call us now at +91 8800839490 or request a remote session via Anydesk.'
+                : 'अभी हमें +91 8800839490 पर कॉल करें या Anydesk के माध्यम से दूरस्थ सत्र का अनुरोध करें।'
               }
             </p>
             <div style={{
@@ -659,13 +659,13 @@ const ServiceSupport = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 style={{
-                  backgroundColor: '#ffffff',
-                  color: '#667eea',
+                  backgroundColor: '#667eea',
+                  color: '#ffffff',
                   padding: '16px 32px',
                   borderRadius: '8px',
                   fontSize: '16px',
                   fontWeight: '600',
-                  border: 'none',
+                  border: '2px solid #667eea',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -674,10 +674,12 @@ const ServiceSupport = () => {
                   textDecoration: 'none'
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#f0f4ff';
+                  e.target.style.backgroundColor = '#5a67d8';
+                  e.target.style.borderColor = '#5a67d8';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#ffffff';
+                  e.target.style.backgroundColor = '#667eea';
+                  e.target.style.borderColor = '#667eea';
                 }}
               >
                 <Phone size={20} />
@@ -688,13 +690,13 @@ const ServiceSupport = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 style={{
-                  backgroundColor: 'transparent',
+                  backgroundColor: '#f093fb',
                   color: '#ffffff',
                   padding: '16px 32px',
                   borderRadius: '8px',
                   fontSize: '16px',
                   fontWeight: '600',
-                  border: '2px solid #ffffff',
+                  border: '2px solid #f093fb',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -703,12 +705,12 @@ const ServiceSupport = () => {
                   textDecoration: 'none'
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#ffffff';
-                  e.target.style.color = '#667eea';
+                  e.target.style.backgroundColor = '#e879f9';
+                  e.target.style.borderColor = '#e879f9';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = '#ffffff';
+                  e.target.style.backgroundColor = '#f093fb';
+                  e.target.style.borderColor = '#f093fb';
                 }}
               >
                 <Mail size={20} />
@@ -718,13 +720,13 @@ const ServiceSupport = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  backgroundColor: '#4facfe',
                   color: '#ffffff',
                   padding: '16px 32px',
                   borderRadius: '8px',
                   fontSize: '16px',
                   fontWeight: '600',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                  border: '2px solid #4facfe',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -732,10 +734,12 @@ const ServiceSupport = () => {
                   transition: 'all 0.3s ease'
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+                  e.target.style.backgroundColor = '#3b82f6';
+                  e.target.style.borderColor = '#3b82f6';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                  e.target.style.backgroundColor = '#4facfe';
+                  e.target.style.borderColor = '#4facfe';
                 }}
               >
                 <MessageSquare size={20} />

@@ -9,6 +9,7 @@ export default defineConfig({
   publicDir: 'public',
   server: {
     port: 5173,
+    strictPort: true, // Don't auto-increment port
     host: true,
     open: false, // Don't auto-open browser
     hmr: {

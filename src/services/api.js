@@ -5,15 +5,27 @@ class ApiService {
   // Generic fetch method
   async fetchData(url, options = {}) {
     try {
-      const response = await fetch(`${API_BASE_URL}${url}`, {
-        headers: {
+      const config = {
+        ...options,
+      };
+
+      // Only set Content-Type for JSON, not for FormData
+      if (!(options.body instanceof FormData)) {
+        config.headers = {
           'Content-Type': 'application/json',
           ...options.headers,
-        },
-        ...options,
-      });
+        };
+      } else {
+        config.headers = {
+          ...options.headers,
+        };
+      }
+
+      const response = await fetch(`${API_BASE_URL}${url}`, config);
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -41,8 +53,16 @@ class ApiService {
     return this.fetchData(`/products/category/${category}`);
   }
 
+  async getFeaturedProducts(limit = 4) {
+    return this.fetchData(`/products/featured?limit=${limit}`);
+  }
+
   async searchProducts(query) {
     return this.fetchData(`/products/search/${encodeURIComponent(query)}`);
+  }
+
+  async getSearchSuggestions(query) {
+    return this.fetchData(`/products/search-suggestions/${encodeURIComponent(query)}`);
   }
 
   async addProduct(productData) {
@@ -159,6 +179,10 @@ class ApiService {
   async searchLocations(query, type = 'cities') {
     const params = new URLSearchParams({ q: query, type });
     return this.fetchData(`/locations/search?${params}`);
+  }
+
+  async searchLocation(citySlug) {
+    return this.fetchData(`/locations/search?q=${encodeURIComponent(citySlug)}`);
   }
 
   // Network API

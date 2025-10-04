@@ -40,10 +40,9 @@ import {
   ExternalLink,
   Calendar
 } from "lucide-react";
-import { useLocation } from "wouter";
-import WhatsAppForm from "../components/whatsapp-form";
 import WhatsAppFloatingButton from "../components/whatsapp-floating-button";
-import { useModal } from "../components/modals/modal-context";
+import EnhancedContactForm from "../components/EnhancedContactForm";
+import PageTracker from "../components/PageTracker";
 // Removed MetallicCard, AnimatedButton, and SocialMediaCard imports - using inline components
 
 // Styled Card Component
@@ -165,24 +164,11 @@ const WhatsAppLogo = ({ className = "w-6 h-6" }) => (
 );
 
 export default function Contact() {
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [whatsAppFormData, setWhatsAppFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    company: "",
-    message: ""
-  });
-  const [isSubmittingWhatsApp, setIsSubmittingWhatsApp] = useState(false);
-  const [showWhatsAppSuccess, setShowWhatsAppSuccess] = useState(false);
-  const [, setLocation] = useLocation();
-  
-  // Use the centralized modal system
-  const { openModal } = useModal();
-  
   // Dynamic data state
   const [contactInfo, setContactInfo] = useState([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Cookie consent state
+  const [cookieConsent, setCookieConsent] = useState(null);
 
   // Fetch contact info from API
   useEffect(() => {
@@ -197,22 +183,23 @@ export default function Contact() {
         console.error('Error fetching contact info:', error);
         // Fallback to static data if API fails
         setContactInfo([
-          { id: "1", type: "phone", title: "Sales Phone", value: "+91-9717122688", description: "Call us for sales inquiries", icon: "Phone", isActive: true, sortOrder: 1 },
-          { id: "2", type: "phone", title: "Support Phone", value: "+91-9810822688", description: "Call us for technical support", icon: "Phone", isActive: true, sortOrder: 2 },
-          { id: "3", type: "email", title: "General Email", value: "gulshanmarwah@indianbarcode.com", description: "Email us for general inquiries", icon: "Mail", isActive: true, sortOrder: 3 },
+          { id: "1", type: "phone", title: "Sales Phone", value: "+91-8800839490", description: "Call us for sales inquiries", icon: "Phone", isActive: true, sortOrder: 1 },
+          { id: "2", type: "phone", title: "Support Phone", value: "+91-8800122315", description: "Call us for technical support", icon: "Phone", isActive: true, sortOrder: 2 },
+          { id: "3", type: "email", title: "General Email", value: "gm@zebraprintersindia.com", description: "Email us for general inquiries", icon: "Mail", isActive: true, sortOrder: 3 },
+          { id: "6", type: "email", title: "Alternative Email", value: "gm@indianbarcode.com", description: "Alternative email for inquiries", icon: "Mail", isActive: true, sortOrder: 6 },
           { id: "4", type: "address", title: "Office Address", value: "MINDWARE, S-4, Plot No-7, Pocket-7, Pankaj Plaza, Near Metro Station, Sector-12, Dwarka, New Delhi-110078, India", description: "Visit our office for personalized consultation", icon: "MapPin", isActive: true, sortOrder: 4 },
-          { id: "5", type: "social_media", title: "LinkedIn", value: "https://linkedin.com/company/indianbarcode", description: "Follow us on LinkedIn", icon: "Linkedin", isActive: true, sortOrder: 5 },
-          { id: "6", type: "social_media", title: "Instagram", value: "https://instagram.com/indianbarcode", description: "Follow us on Instagram", icon: "Instagram", isActive: true, sortOrder: 6 },
-          { id: "7", type: "social_media", title: "Facebook", value: "https://facebook.com/indianbarcode", description: "Follow us on Facebook", icon: "Facebook", isActive: true, sortOrder: 7 },
-          { id: "8", type: "social_media", title: "Twitter", value: "https://twitter.com/indianbarcode", description: "Follow us on Twitter/X", icon: "Twitter", isActive: true, sortOrder: 8 }
         ]);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchContactInfo();
   }, []);
+
+
+  // Handle cookie consent change
+  const handleCookieConsentChange = (consent) => {
+    setCookieConsent(consent);
+  };
 
   // Helper function to get icon component
   const getIconComponent = (iconName) => {
@@ -220,65 +207,11 @@ export default function Contact() {
       Phone,
       Mail,
       MapPin,
-      Linkedin,
-      Instagram,
-      Facebook,
-      Twitter,
       MessageCircle
     };
     return iconMap[iconName] || Phone;
   };
 
-  const contactOptions = [
-    {
-      id: "form",
-      title: "Fill Form",
-      description: "Quick form submission for instant support.",
-      icon: FileText,
-      color: "bg-gradient-to-r from-blue-500 to-blue-600",
-      bgColor: "bg-blue-50",
-      textColor: "text-blue-600",
-      borderColor: "border-blue-300",
-      hoverColor: "hover:from-blue-600 hover:to-blue-700",
-      iconColor: "#2563eb"
-    },
-    {
-      id: "whatsapp",
-      title: "WhatsApp",
-      description: "Instant chat for immediate assistance.",
-      icon: WhatsAppLogo,
-      color: "bg-gradient-to-r from-green-500 to-green-600",
-      bgColor: "bg-green-50",
-      textColor: "text-green-600",
-      borderColor: "border-green-300",
-      hoverColor: "hover:from-green-600 hover:to-green-700",
-      iconColor: "#25D366"
-    },
-    {
-      id: "call",
-      title: "Call Now",
-      description: "Direct phone support with experts.",
-      icon: Phone,
-      color: "bg-gradient-to-r from-purple-500 to-purple-600",
-      bgColor: "bg-purple-50",
-      textColor: "text-purple-600",
-      borderColor: "border-purple-300",
-      hoverColor: "hover:from-purple-600 hover:to-purple-700",
-      iconColor: "#9333ea"
-    },
-    {
-      id: "email",
-      title: "Email Us",
-      description: "Send detailed queries via email.",
-      icon: Mail,
-      color: "bg-gradient-to-r from-orange-500 to-orange-600",
-      bgColor: "bg-orange-50",
-      textColor: "text-orange-600",
-      borderColor: "border-orange-300",
-      hoverColor: "hover:from-orange-600 hover:to-orange-700",
-      iconColor: "#ea580c"
-    }
-  ];
 
   // Get social media links from dynamic data
   const socialMediaLinks = contactInfo
@@ -310,56 +243,12 @@ export default function Contact() {
 
   // Fallback social media data if API fails
   const fallbackSocialMedia = [
-    {
-      name: "LinkedIn",
-      icon: Linkedin,
-      url: "https://linkedin.com/company/indianbarcode",
-      color: "hsl(201, 96%, 32%)",
-      bgColor: "hsl(201, 96%, 32%, 0.1)",
-      description: "Follow us on LinkedIn"
-    },
-    {
-      name: "Instagram", 
-      icon: Instagram,
-      url: "https://instagram.com/indianbarcode",
-      color: "hsl(329, 100%, 50%)",
-      bgColor: "hsl(329, 100%, 50%, 0.1)",
-      description: "Follow us on Instagram"
-    },
-    {
-      name: "Facebook",
-      icon: Facebook,
-      url: "https://facebook.com/indianbarcode", 
-      color: "hsl(221, 44%, 41%)",
-      bgColor: "hsl(221, 44%, 41%, 0.1)",
-      description: "Follow us on Facebook"
-    },
-    {
-      name: "Twitter",
-      icon: Twitter,
-      url: "https://twitter.com/indianbarcode",
-      color: "hsl(203, 89%, 53%)",
-      bgColor: "hsl(203, 89%, 53%, 0.1)",
-      description: "Follow us on Twitter/X"
-    }
+  
   ];
 
   // Use fallback data if no social media links are loaded
   const displaySocialMediaLinks = socialMediaLinks.length > 0 ? socialMediaLinks : fallbackSocialMedia;
 
-  const handleOptionClick = (optionId) => {
-    if (optionId === "form") {
-      openModal('contact-form');
-    } else if (optionId === "call") {
-      openModal('call-popup');
-    } else if (optionId === "whatsapp") {
-      openModal('whatsapp-form');
-    } else if (optionId === "email") {
-      window.open('mailto:gulshanmarwah@indianbarcode.com?subject=Inquiry from Website&body=Hello, I would like to know more about your barcode and RFID solutions.', '_blank');
-    } else {
-      setSelectedOption(optionId);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -428,104 +317,166 @@ export default function Contact() {
         </div>
       </div>
 
-      {/* Contact Options Section */}
+      {/* Contact Form Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Choose how you'd like to connect with us
+            Get in Touch with Us
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Select your preferred contact method below
+            Fill out the form below and we'll get back to you within 24 hours
           </p>
         </div>
 
-        <div className="flex justify-center items-center gap-8 flex-wrap">
-          {contactOptions.map((option) => {
-            const IconComponent = option.icon;
-            
-            return (
-              <div
-                key={option.id}
-                onClick={() => handleOptionClick(option.id)}
+        {/* Enhanced Contact Form */}
+        <div className="max-w-4xl mx-auto">
+          <EnhancedContactForm />
+        </div>
+
+        {/* Alternative Contact Methods */}
+        <div className="mt-16">
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">
+              Or contact us directly
+            </h3>
+            <p className="text-gray-600">
+              Choose your preferred contact method for immediate assistance
+            </p>
+          </div>
+
+          <div className="flex justify-center items-center gap-8 flex-wrap">
+            {/* WhatsApp Card */}
+            <div
+              onClick={() => window.open('https://wa.me/918800839490?text=Hello%20Sir,%20I%20need%20assistance%20with%20Zebra%20Printers', '_blank')}
+              style={{
+                background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)',
+                border: '1px solid #e2e8f0',
+                borderRadius: '16px',
+                padding: '32px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+                minHeight: '200px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                width: '280px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-4px)';
+                e.target.style.boxShadow = '0 8px 25px rgba(34, 197, 94, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.05)';
+              }}
+            >
+              <WhatsAppLogo className="w-16 h-16 mb-4 mx-auto" style={{ color: '#25D366' }} />
+              <h3 className="text-xl font-bold text-gray-900 mb-3">WhatsApp</h3>
+              <p className="text-gray-600 mb-4">Instant chat for immediate assistance</p>
+              <button
+                className="w-full py-3 px-6 rounded-lg font-medium text-white transition-all duration-200"
                 style={{
-                  background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '16px',
-                  padding: '32px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
-                  minHeight: '300px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'translateY(-4px)';
-                  e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.05)';
+                  background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                  border: 'none'
                 }}
               >
-                {/* Icon */}
-                <IconComponent 
-                  className="w-24 h-24 mb-4"
-                  style={{ color: option.iconColor }}
-                />
-                
-                {/* Title */}
-                <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">
-                  {option.title}
-                </h3>
-                
-                {/* Description */}
-                <p className="text-base text-gray-600 mb-5 text-center leading-relaxed">
-                  {option.description}
-                </p>
-                
-                {/* Button */}
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOptionClick(option.id);
-                  }}
-                  style={{
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '12px 24px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    marginTop: 'auto'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'scale(1.05)';
-                    e.target.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'scale(1)';
-                    e.target.style.boxShadow = 'none';
-                  }}
-                >
-                  {option.id === "form" ? "Fill Form" : 
-                   option.id === "whatsapp" ? "WhatsApp" : 
-                   option.id === "call" ? "Call Now" : 
-                   option.id === "email" ? "Email Us" : "Button"}
-                </button>
-              </div>
-            );
-          })}
+                WhatsApp
+              </button>
+            </div>
+
+            {/* Call Now Card */}
+            <div
+              onClick={() => window.open('tel:+918800839490', '_self')}
+              style={{
+                background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)',
+                border: '1px solid #e2e8f0',
+                borderRadius: '16px',
+                padding: '32px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+                minHeight: '200px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                width: '280px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-4px)';
+                e.target.style.boxShadow = '0 8px 25px rgba(139, 92, 246, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.05)';
+              }}
+            >
+              <Phone className="w-16 h-16 mb-4 mx-auto" style={{ color: '#8b5cf6' }} />
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Call Now</h3>
+              <p className="text-gray-600 mb-4">Direct phone support with experts</p>
+              <button
+                className="w-full py-3 px-6 rounded-lg font-medium text-white transition-all duration-200"
+                style={{
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                  border: 'none'
+                }}
+              >
+                Call Now
+              </button>
+            </div>
+
+            {/* Email Us Card */}
+            <div
+              onClick={() => window.open('mailto:gm@zebraprintersindia.com?subject=Inquiry%20from%20Website&body=Hello%20Sir,%0A%0AI%20am%20interested%20in%20your%20Zebra%20Printers%20products.%0A%0APlease%20contact%20me%20at%20your%20earliest%20convenience.%0A%0AThank%20you.', '_self')}
+              style={{
+                background: 'linear-gradient(135deg, #ffffff 0%, #fff7ed 100%)',
+                border: '1px solid #e2e8f0',
+                borderRadius: '16px',
+                padding: '32px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+                minHeight: '200px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                width: '280px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-4px)';
+                e.target.style.boxShadow = '0 8px 25px rgba(249, 115, 22, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.05)';
+              }}
+            >
+              <Mail className="w-16 h-16 mb-4 mx-auto" style={{ color: '#f97316' }} />
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Email Us</h3>
+              <p className="text-gray-600 mb-4">Send detailed queries via email</p>
+              <button
+                className="w-full py-3 px-6 rounded-lg font-medium text-white transition-all duration-200"
+                style={{
+                  background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                  border: 'none'
+                }}
+              >
+                Email Us
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* WhatsApp Floating Button */}
       <WhatsAppFloatingButton />
+
+      {/* Page Tracker */}
+      <PageTracker pageName="Contact Page" />
+
 
       {/* Social Media Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -656,87 +607,6 @@ export default function Contact() {
         </div>
       </div>
 
-      {/* Trust & Recognition Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4 text-gray-900">
-            Trust & Recognition
-          </h2>
-          <p className="text-lg text-gray-600">
-            Our achievements, certifications, and trusted partnerships
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          {/* Trust Badges */}
-          <Card className="bg-white shadow-xl border border-gray-200 text-center">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-center gap-3">
-                <Shield className="w-6 h-6 text-blue-600" />
-                Trust Badges
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-gray-900">ISO Certified</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <Award className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-gray-900">Award Winner</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Certifications */}
-          <Card className="bg-white shadow-xl border border-gray-200 text-center">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-center gap-3">
-                <FileText className="w-6 h-6 text-blue-600" />
-                Certifications
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <Star className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-gray-900">ISO 9001:2015</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <TrendingUp className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-gray-900">Quality Assured</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* WhatsApp QR */}
-          <Card className="bg-white shadow-xl border border-gray-200 text-center">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-center gap-3">
-                <WhatsAppLogo className="w-6 h-6 text-green-600" />
-                WhatsApp QR
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="w-40 h-40 bg-white rounded-lg mx-auto mb-3 flex items-center justify-center shadow-md p-2">
-                  <div className="w-36 h-36 bg-white rounded flex items-center justify-center relative">
-                    <img 
-                      src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://wa.me/919810822688?text=Hello%20Sir"
-                      alt="WhatsApp QR Code"
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                </div>
-                <p className="text-sm font-semibold text-gray-900">Scan to Chat</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
     </div>
   );
 }

@@ -13,7 +13,19 @@
   min-height: 400px;
   width: 100%;
   max-width: 1200px;
-  margin-top: 0px;
+  margin-top: 8px; /* Add small gap to prevent hover issues */
+}
+
+/* Add invisible hover bridge to prevent dropdown from closing */
+.product-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -20px; /* Extend above dropdown */
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: transparent;
+  z-index: -1;
 }
 
 @keyframes dropdownSlideDown {
@@ -37,19 +49,48 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 24px;
-  text-align: center;
 }
 
-.dropdown-header h2 {
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-text {
+  text-align: left;
+}
+
+.header-text h2 {
   margin: 0 0 8px 0;
   font-size: 24px;
   font-weight: 700;
 }
 
-.dropdown-header p {
+.header-text p {
   margin: 0;
   font-size: 14px;
   opacity: 0.9;
+}
+
+.view-all-link {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(240, 147, 251, 0.3);
+}
+
+.view-all-link:hover {
+  background: linear-gradient(135deg, #e879f9 0%, #ef4444 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(240, 147, 251, 0.4);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .dropdown-content {
@@ -81,6 +122,8 @@
   transition: all 0.2s ease;
   margin-bottom: 8px;
   border: 2px solid transparent;
+  text-decoration: none;
+  color: inherit;
 }
 
 .category-item:hover,
@@ -122,6 +165,7 @@
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -229,6 +273,7 @@
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

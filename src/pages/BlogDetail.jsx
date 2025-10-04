@@ -3,8 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Calendar, User, Tag, Clock, Eye, ArrowLeft, Share2, BookOpen } from 'lucide-react';
 import apiService from '../services/api';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
 
 const BlogDetail = () => {
   const { slug } = useParams();
@@ -78,7 +76,6 @@ const BlogDetail = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto">
             <div className="animate-pulse">
@@ -93,7 +90,6 @@ const BlogDetail = () => {
             </div>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -101,7 +97,6 @@ const BlogDetail = () => {
   if (error || !blog) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header />
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Blog Not Found</h1>
@@ -115,7 +110,6 @@ const BlogDetail = () => {
             </button>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -124,8 +118,6 @@ const BlogDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-      
       {/* Breadcrumb */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
@@ -298,8 +290,6 @@ const BlogDetail = () => {
           )}
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 };
