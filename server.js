@@ -36,6 +36,11 @@ const PORT = process.env.PORT || 80;
 // FORCE ALL requests to be handled by Express - bypass Nginx static serving
 app.use((req, res, next) => {
     console.log(`[EXPRESS] Handling request: ${req.method} ${req.url}`);
+    
+    // Set correct Content-Type for HTML files
+    if (req.url === '/' || req.url.match(/\.html$/)) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    }
     next();
 });
 
@@ -190,6 +195,13 @@ app.use('/.well-known', express.static(path.join(__dirname, 'public', '.well-kno
 // Additional fallback for .well-known directory
 app.use('/.well-known', express.static(path.join(__dirname, '.well-known')));
 
+// Catch-all handler: send back React's index.html file for SPA routing
+app.get('*', (req, res) => {
+  console.log(`[EXPRESS] Catch-all route for: ${req.url}`);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 // Database connection middleware
 app.use((req, res, next) => {
   // Add database connection to request object
@@ -276,7 +288,9 @@ app.get('/health', (req, res) => {
 
 // Root endpoint for CapRover health check - immediate response
 app.get('/', (req, res) => {
-  res.status(200).send('OK');
+  console.log('[EXPRESS] Serving main page');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // Health check endpoint
