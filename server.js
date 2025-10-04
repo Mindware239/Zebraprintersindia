@@ -155,6 +155,15 @@ app.use('/downloads', express.static('uploads/drivers'));
 // Serve static files from the React app build directory
 app.use(express.static(path.join(__dirname, 'dist')));
 
+// Explicit routes for common files that nginx might look for
+app.get('/favicon.ico', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'favicon.ico'));
+});
+
+app.get('/robots.txt', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'robots.txt'));
+});
+
 // Serve .well-known directory for ACME challenges
 app.use('/.well-known', express.static(path.join(__dirname, 'public', '.well-known')));
 
