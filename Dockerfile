@@ -1,5 +1,5 @@
-# Use Node.js 22 LTS
-FROM node:22-alpine
+# Multi-stage build: Build stage
+FROM node:22-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -27,6 +27,31 @@ RUN if [ -f "dist/favicon.png" ] && [ ! -f "dist/favicon.ico" ]; then cp dist/fa
 # Set permissions
 RUN chmod -R 755 uploads
 
+# Production stage: Use Nginx to serve static files and proxy API requests
+FROM nginx:alpine
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html/dist
+COPY --from=builder /app/uploads /app/uploads
+
+# Copy server files for API
+COPY --from=builder /app/server.js /app/
+COPY --from=builder /app/package*.json /app/
+COPY --from=builder /app/database.js /app/
+COPY --from=builder /app/sitemap-generator.js /app/
+COPY --from=builder /app/utils /app/utils
+COPY --from=builder /app/node_modules /app/node_modules
+
+# Create a startup script that runs both Nginx and Node.js
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'nginx &' >> /start.sh && \
+    echo 'cd /app && node server.js &' >> /start.sh && \
+    echo 'wait' >> /start.sh && \
+    chmod +x /start.sh
+
 # Expose port
 EXPOSE 80
 
@@ -34,5 +59,5 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:80/health || exit 1
 
-# Start the application
-CMD ["npm", "start"]
+# Start both Nginx and Node.js
+CMD ["/start.sh"]
