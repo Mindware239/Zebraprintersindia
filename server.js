@@ -172,8 +172,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Handle all API routes explicitly
-app.get('/api/*', (req, res, next) => {
+// Handle all API routes explicitly - using proper Express syntax
+app.use('/api', (req, res, next) => {
   console.log(`[EXPRESS] API request: ${req.url}`);
   next();
 });
