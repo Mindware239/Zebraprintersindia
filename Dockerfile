@@ -27,8 +27,11 @@ RUN if [ -f "dist/favicon.png" ] && [ ! -f "dist/favicon.ico" ]; then cp dist/fa
 # Set permissions
 RUN chmod -R 755 uploads
 
-# Production stage: Use Nginx to serve static files and proxy API requests
+# Production stage: Use Nginx with Node.js to serve static files and proxy API requests
 FROM nginx:alpine
+
+# Install Node.js in the nginx image
+RUN apk add --no-cache nodejs npm
 
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
