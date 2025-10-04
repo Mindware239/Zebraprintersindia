@@ -31,7 +31,7 @@ const emailTransporter = nodemailer.createTransport({
 });
 
 const app = express();
-const PORT = process.env.PORT || 80;
+const PORT = process.env.PORT || 3000;
 
 // FORCE ALL requests to be handled by Express - bypass Nginx static serving
 app.use((req, res, next) => {
@@ -195,12 +195,6 @@ app.use('/.well-known', express.static(path.join(__dirname, 'public', '.well-kno
 // Additional fallback for .well-known directory
 app.use('/.well-known', express.static(path.join(__dirname, '.well-known')));
 
-// Catch-all handler: send back React's index.html file for SPA routing
-app.get('*', (req, res) => {
-  console.log(`[EXPRESS] Catch-all route for: ${req.url}`);
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
 
 // Database connection middleware
 app.use((req, res, next) => {
@@ -288,9 +282,7 @@ app.get('/health', (req, res) => {
 
 // Root endpoint for CapRover health check - immediate response
 app.get('/', (req, res) => {
-  console.log('[EXPRESS] Serving main page');
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  res.status(200).send('OK');
 });
 
 // Health check endpoint
