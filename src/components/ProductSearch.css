@@ -1,0 +1,106 @@
+/* Product Search Component Styles */
+
+.product-search {
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Header-specific search styling */
+.header-search .product-search {
+  width: 100%;
+}
+
+.header-search .product-search > div {
+  width: 100%;
+}
+
+.header-search .product-search input {
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background-color: #f9fafb;
+  width: 100%;
+}
+
+.header-search .product-search input:focus {
+  border-color: #2563eb;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.header-search .product-search button {
+  padding: 6px 8px;
+  background-color: #2563eb;
+  border-radius: 8px;
+  border: none;
+  flex-shrink: 0;
+  width: 40px;
+  min-width: 40px;
+}
+
+.header-search .product-search button:hover {
+  background-color: #1d4ed8;
+}
+
+.product-search input {
+  font-family: inherit;
+}
+
+.product-search input::placeholder {
+  color: #9ca3af;
+  transition: color 0.2s ease;
+}
+
+.product-search input:focus::placeholder {
+  color: #d1d5db;
+}
+
+/* Loading animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .product-search {
+    max-width: 100%;
+  }
+  
+  .product-search input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Focus states */
+.product-search:focus-within .search-container {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Smooth transitions */
+.product-search * {
+  transition: all 0.2s ease;
+}
+
+/* Custom scrollbar for suggestions */
+.product-search .suggestions-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.product-search .suggestions-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.product-search .suggestions-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.product-search .suggestions-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
