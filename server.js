@@ -2197,7 +2197,7 @@ app.post('/api/contact/submit', async (req, res) => {
     // Get client IP and user agent
     const ipAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
     const userAgent = req.get('User-Agent');
-    const timestamp = new Date().toISOString();
+    const timestamp = new Date();
     
     // Insert into database
     const insertQuery = `
@@ -2810,7 +2810,7 @@ app.post('/api/contact-form', async (req, res) => {
     // Get client IP and user agent (server-side)
     const serverIpAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
     const serverUserAgent = req.get('User-Agent');
-    const timestamp = new Date().toISOString();
+    const timestamp = new Date();
     
     // Insert into database
     const insertQuery = `
@@ -3041,7 +3041,7 @@ app.post('/api/contact/enhanced-submit', async (req, res) => {
     // Get client IP and user agent (server-side)
     const serverIpAddress = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
     const serverUserAgent = req.get('User-Agent');
-    const timestamp = new Date().toISOString();
+    const timestamp = new Date();
     
     // Insert into database (using the same contact_form table but with enhanced fields)
     const insertQuery = `
@@ -4987,7 +4987,7 @@ app.get('/api/schema/latest-content', (req, res) => {
 
   // Fetch latest products
   const productsQuery = `
-    SELECT id, name, slug, description, image, category, price, sku, model_number, created_at, updated_at
+    SELECT id, name, slug, description, image, category, sku, model_number, created_at, updated_at
     FROM products 
     WHERE status = 'active' 
     ORDER BY created_at DESC 
